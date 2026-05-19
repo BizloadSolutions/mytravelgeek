@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Script from "next/script";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import SuppressExtensionHydrationWarning from "@/components/SuppressExtensionHydrationWarning";
 
 export const metadata: Metadata = {
   title: "AI for Travel and Lifestyle Guide",
@@ -15,9 +16,8 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head suppressHydrationWarning>
-        {/* Runs before body; plain src avoids dangerouslySetInnerHTML hydration mismatch */}
-        {/* eslint-disable-next-line @next/next/no-sync-scripts */}
-        {/* <script src="/js/strip-extension-attrs.js" /> */}
+       
+        <script src="/js/strip-extension-attrs.js" />
         <meta name="msapplication-TileColor" content="#ffffff" />
         <meta
           name="msapplication-TileImage"
@@ -49,6 +49,7 @@ export default function RootLayout({
       </head>
 
       <body suppressHydrationWarning>
+        <SuppressExtensionHydrationWarning />
         <div
           className="site-wraper flex min-h-screen flex-col"
           suppressHydrationWarning
