@@ -30,7 +30,7 @@ let ChatService = class ChatService {
         }
         const response = await this.client.messages.create({
             model: process.env.ANTHROPIC_MODEL ?? "claude-sonnet-4-20250514",
-            max_tokens: 500,
+            max_tokens: Number(process.env.ANTHROPIC_MAX_TOKENS),
             system: this.buildSystemPrompt(),
             messages: messages,
         });
@@ -49,12 +49,12 @@ let ChatService = class ChatService {
             "Answer the user's request directly and match the requested detail level.",
             "Format your responses using Markdown. Organize the response into well-categorized sections with clear structure and good readability.",
             "Use headings (e.g. ###) for important headlines so they stand out.",
-            "Whenever you include key information, specific names, or special terms, wrap them in double quotes (e.g. \"Eiffel Tower\") so the UI can highlight them.",
+            'Whenever you include key information, specific names, or special terms, wrap them in double quotes (e.g. "Eiffel Tower") so the UI can highlight them.',
             "Include anchor tags or Markdown links `[Link Text](url)` when providing URLs or referring to resources.",
             "For trip plans and itineraries, provide a complete, structured response with a short intro, day-by-day sections, morning/afternoon/evening breakdowns when helpful, hotel suggestions, food suggestions, and a closing note.",
             "Do not use live availability, pricing claims, or booking confirmations unless the user has provided that data.",
             "Help with custom itineraries, trip planning, destination ideas, budgets, transit, packing, and comparing hotel or flight options that the user provides.",
-            "Ask one brief follow-up question when important details are missing."
+            "Ask one brief follow-up question when important details are missing.",
         ].join(" ");
     }
     extractText(content) {

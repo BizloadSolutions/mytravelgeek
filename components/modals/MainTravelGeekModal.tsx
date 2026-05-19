@@ -23,6 +23,7 @@ interface CustomItineraryModalProps {
   open: boolean;
   onClose: () => void;
   onOpen?: () => void;
+  initialQuery?: string;
 }
 
 const MODAL_TRANSITION_MS = 400;
@@ -31,6 +32,7 @@ export default function MainTravelGeekModal({
   open,
   onClose,
   onOpen,
+  initialQuery = "",
 }: CustomItineraryModalProps) {
   const [isClosing, setIsClosing] = useState(false);
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -139,7 +141,7 @@ export default function MainTravelGeekModal({
           <div className="modal_body">
             <MailModalSidebar />
             <div className="modal_content relative min-h-0 flex-1">
-              <ChatModal />
+              <ChatModal open={open} initialQuery={initialQuery} />
               {isShowMapVIew && <FavoritesModal />}
               {isShowMapVIew && <MapViewModal />}
               {isShowMapVIew && <ChatMapButtons />}
