@@ -39,7 +39,7 @@ export default function Header() {
             </a>
           </div>
           <div className="flex">
-            <a href="#" className="btn btn-primary text-xs sm:text-sm">
+            <a href="#" className="btn btn-primary">
               MyTravelGeek for Brands
             </a>
           </div>

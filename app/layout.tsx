@@ -15,6 +15,9 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head suppressHydrationWarning>
+        {/* Runs before body; plain src avoids dangerouslySetInnerHTML hydration mismatch */}
+        {/* eslint-disable-next-line @next/next/no-sync-scripts */}
+        {/* <script src="/js/strip-extension-attrs.js" /> */}
         <meta name="msapplication-TileColor" content="#ffffff" />
         <meta
           name="msapplication-TileImage"
@@ -45,17 +48,17 @@ export default function RootLayout({
         <link rel="stylesheet" href="/css/responsive.css" />
       </head>
 
-      <body suppressHydrationWarning className="min-h-full flex flex-col">
-        <Script
-          src="/js/strip-extension-attrs.js"
-          strategy="beforeInteractive"
-        />
+      <body suppressHydrationWarning>
+        <div
+          className="site-wraper flex min-h-screen flex-col"
+          suppressHydrationWarning
+        >
+          <Header />
 
-        <Header />
+          {children}
 
-        {children}
-
-        <Footer />
+          <Footer />
+        </div>
 
         {/* Tailwind */}
         <Script

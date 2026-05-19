@@ -1,25 +1,80 @@
 /**
- * Removes attributes injected by browser extensions (e.g. Bitdefender's
- * bis_skin_checked) before React hydrates, preventing hydration mismatches.
+ * Removes attributes injected by browser extensions (e.g. Bitdefender bis_*)
+ * before React hydrates. Uses a MutationObserver because extensions often
+ * inject after the first paint.
  */
 (function () {
-  var EXTENSION_ATTRS = ["bis_skin_checked", "bis_register"];
+  var PREFIX = "bis_";
 
-  function stripExtensionAttributes() {
-    var nodes = document.getElementsByTagName("*");
-    for (var i = 0; i < nodes.length; i++) {
-      var el = nodes[i];
-      for (var j = 0; j < EXTENSION_ATTRS.length; j++) {
-        el.removeAttribute(EXTENSION_ATTRS[j]);
+  function stripElement(el) {
+    if (!el || el.nodeType !== 1) return;
+    var attrs = el.attributes;
+    for (var i = attrs.length - 1; i >= 0; i--) {
+      var name = attrs[i].name;
+      if (name.indexOf(PREFIX) === 0) {
+        el.removeAttribute(name);
       }
     }
   }
 
-  stripExtensionAttributes();
+  function stripTree(root) {
+    if (!root || root.nodeType !== 1) return;
+    stripElement(root);
+    if (root.querySelectorAll) {
+      var nodes = root.querySelectorAll("*");
+      for (var i = 0; i < nodes.length; i++) {
+        stripElement(nodes[i]);
+      }
+    }
+  }
+
+  function stripAll() {
+    if (document.documentElement) {
+      stripTree(document.documentElement);
+    }
+  }
+
+  stripAll();
+
+  if (typeof MutationObserver !== "undefined" && document.documentElement) {
+    var observer = new MutationObserver(function (mutations) {
+      for (var i = 0; i < mutations.length; i++) {
+        var m = mutations[i];
+        if (m.type === "attributes") {
+          var name = m.attributeName;
+          if (name && name.indexOf(PREFIX) === 0) {
+            m.target.removeAttribute(name);
+          }
+        } else if (m.type === "childList") {
+          for (var j = 0; j < m.addedNodes.length; j++) {
+            var node = m.addedNodes[j];
+            if (node.nodeType === 1) {
+              stripTree(node);
+            }
+          }
+        }
+      }
+    });
+
+    observer.observe(document.documentElement, {
+      subtree: true,
+      attributes: true,
+      childList: true,
+    });
+
+    window.addEventListener(
+      "load",
+      function () {
+        stripAll();
+        observer.disconnect();
+      },
+      { once: true }
+    );
+  }
 
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", stripExtensionAttributes, {
-      once: true,
-    });
+    document.addEventListener("DOMContentLoaded", stripAll, { once: true });
+  } else {
+    stripAll();
   }
 })();
