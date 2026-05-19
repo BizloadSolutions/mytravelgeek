@@ -269,7 +269,7 @@ export default function HomePage() {
                   type="button"
                   className="travel-suggestion-chip inline-flex shrink-0 cursor-pointer items-center gap-[5px] rounded-2xl bg-zinc-100 px-2.5 py-2 text-left text-xs font-normal whitespace-nowrap text-zinc-600 transition-colors hover:bg-zinc-200"
                   data-q={suggestion}
-                  onClick={() => setSearchQuery(suggestion)}
+                  onClick={() => handleOpenModal(suggestion)}
                 >
                   <span
                     className="inline-flex size-[18px] shrink-0 items-center justify-center"
@@ -711,6 +711,7 @@ export default function HomePage() {
 
       <MainTravelGeekModal
         open={isOpen}
+        initialQuery={searchQuery}
         onOpen={() => setIsOpen(true)}
         onClose={() => setIsOpen(false)}
       />

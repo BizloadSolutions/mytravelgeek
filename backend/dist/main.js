@@ -10,7 +10,7 @@ async function bootstrap() {
         credentials: true,
     });
     app.setGlobalPrefix("api");
-    const port = Number(process.env.NEST_PORT ?? 3001);
+    const port = Number(process.env.NEST_PORT ?? process.env.PORT ?? 3001);
     const host = process.env.NEST_HOST ?? "127.0.0.1";
     await app.listen(port, host);
 }
