@@ -1,52 +1,50 @@
-@import url('developer.css');
-@import url('color.css');
-@import url('fonts.css');
-@import url('style.css');
-
+@import url("developer.css");
+@import url("color.css");
+@import url("fonts.css");
+@import url("style.css");
 
 i[data-tabler] {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    vertical-align: middle;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
 }
 
 i[data-tabler] svg {
-    width: 100%;
-    height: 100%;
-    fill: none;
+  width: 100%;
+  height: 100%;
+  fill: none;
 }
 
-
 .btn {
-    padding: 11px 15px;
-    font-size: 14px;
-    font-weight: 600;
-    border-radius: 10px;
-    border: none;
-    width: 100%;
-    box-shadow: none;
+  padding: 11px 15px;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 10px;
+  border: none;
+  width: 100%;
+  box-shadow: none;
 }
 
 .btn-primary {
-    background-color: var(--bg-background);
-    color: #282828;
-    cursor: pointer;
-    transition: all 0.3s ease;
+  background-color: var(--bg-background);
+  color: #282828;
+  cursor: pointer;
+  transition: all 0.3s ease;
 }
 
 .btn-secondary {
-    background-color: var(--bg-background);
-    color: var(--main-primary);
-    cursor: pointer;
-    transition: all 0.3s ease;
+  background-color: var(--bg-background);
+  color: var(--main-primary);
+  cursor: pointer;
+  transition: all 0.3s ease;
 }
 
 .btn-tertiary {
-    background-color: var(--main-primary);
-    color: var(--bg-background);
-    cursor: pointer;
-    transition: all 0.3s ease;
+  background-color: var(--main-primary);
+  color: var(--bg-background);
+  cursor: pointer;
+  transition: all 0.3s ease;
 }
 
 h1,
@@ -55,404 +53,424 @@ h3,
 h4,
 h5,
 h6 {
-    color: var(--text-text-color);
+  color: var(--text-text-color);
 }
 
 p {
-    font-size: 14px;
-    color: var(--text-text-color-muted-extra);
+  font-size: 14px;
+  color: var(--text-text-color-muted-extra);
 }
 
 .site-header.is-scrolled {
-    background: rgba(0, 0, 0, 0.5);
-    -webkit-backdrop-filter: blur(12px);
-    backdrop-filter: blur(12px);
-    box-shadow: 0 1px 0 var(--border);
+  background: rgba(0, 0, 0, 0.5);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 1px 0 var(--border);
 }
 
 /* ----- Custom Itinerary modal (modal.php) — native <dialog> ----- */
 
 .modal {
-    color: var(--text-text-color) !important;
+  color: var(--text-text-color) !important;
 }
 
 .modal ul li,
 .modal ol li {
-    color: var(--text-text-color);
+  color: var(--text-text-color);
 }
 
 dialog.modal {
-    margin: auto;
-    border: none;
-    padding: 0;
-    width: 100%;
-    max-width: 100vw;
-    min-height: 100dvh;
-    background: transparent;
-    color: inherit;
-    margin: 0;
+  margin: auto;
+  border: none;
+  padding: 0;
+  width: 100%;
+  max-width: 100vw;
+  min-height: 100dvh;
+  background: transparent;
+  color: inherit;
+  margin: 0;
 }
 
 dialog.modal::backdrop {
-    background: rgb(15 23 42 / 0.45);
-    -webkit-backdrop-filter: blur(2px);
-    backdrop-filter: blur(2px);
+  background: rgb(15 23 42 / 0.45);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+  transition: opacity 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+dialog.modal.is-closing::backdrop {
+  opacity: 0;
 }
 
 dialog.modal:focus {
-    outline: none;
+  outline: none;
 }
 
 dialog.modal:focus-visible {
-    outline: 2px solid var(--main-primary, #f26537);
-    outline-offset: 2px;
+  outline: 2px solid var(--main-primary, #f26537);
+  outline-offset: 2px;
 }
 
-/* Inner panel — wide card like design preview */
+/* Inner panel — slides in from the right (reference: modal.php) */
 dialog.modal .modal-box {
-    position: relative;
-    z-index: 1;
-    display: flex;
-    flex-direction: column;
-    width: 100%;
-    max-width: 1000px;
-    min-height: 100dvh;
-    margin: 0 0 0 auto;
-    overflow: hidden;
-    background: var(--bg-background, #fff);
-    box-shadow:
-        0 20px 25px -5px rgb(0 0 0 / 0.1),
-        0 8px 10px -6px rgb(0 0 0 / 0.1);
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 1000px;
+  min-height: 100dvh;
+  margin: 0 0 0 auto;
+  overflow: hidden;
+  background: var(--bg-background, #fff);
+  box-shadow:
+    0 20px 25px -5px rgb(0 0 0 / 0.1),
+    0 8px 10px -6px rgb(0 0 0 / 0.1);
+  transform: translate3d(100%, 0, 0);
+  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+dialog.modal[open] .modal-box {
+  transform: translate3d(0, 0, 0);
+}
+
+dialog.modal.is-closing .modal-box {
+  transform: translate3d(100%, 0, 0);
+}
+
+@starting-style {
+  dialog.modal[open] .modal-box {
+    transform: translate3d(100%, 0, 0);
+  }
 }
 
 /* Mobile nav drawer (< md) */
 dialog.modal .modal_mobile-nav {
-    position: absolute;
-    inset: 0;
-    z-index: 60;
-    display: flex;
-    flex-direction: column;
-    background: #fff;
-    transform: translate3d(-100%, 0, 0);
-    transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
-    visibility: hidden;
-    pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  transform: translate3d(-100%, 0, 0);
+  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  visibility: hidden;
+  pointer-events: none;
 }
 
 dialog.modal .modal_mobile-nav.is-open {
-    transform: translate3d(0, 0, 0);
-    visibility: visible;
-    pointer-events: auto;
+  transform: translate3d(0, 0, 0);
+  visibility: visible;
+  pointer-events: auto;
 }
 
 @media (min-width: 768px) {
-    dialog.modal .modal_mobile-nav {
-        display: none;
-    }
+  dialog.modal .modal_mobile-nav {
+    display: none;
+  }
 }
 
 dialog.modal .modal_mobile-nav__header {
-    display: flex;
-    flex-shrink: 0;
-    align-items: center;
-    gap: 0.625rem;
-    padding: 0.75rem 1rem; 
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.75rem 1rem;
 }
 
 dialog.modal .modal_mobile-nav__brand {
-    display: flex;
-    min-width: 0;
-    flex: 1 1 auto;
-    align-items: center;
-    gap: 0.625rem;
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 0.625rem;
 }
 
 dialog.modal .modal_mobile-nav__title {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-size: 1.125rem;
-    line-height: 1.75rem;
-    font-weight: 600;
-    color: #09090b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 1.125rem;
+  line-height: 1.75rem;
+  font-weight: 600;
+  color: #09090b;
 }
 
 dialog.modal .modal_mobile-nav__close {
-    display: flex;
-    flex-shrink: 0;
-    align-items: center;
-    justify-content: center;
-    border: none;
-    background: transparent;
-    padding: 0;
-    cursor: pointer;
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
 }
 
 dialog.modal .modal_mobile-nav__list {
-    display: flex;
-    flex-direction: column;
-    margin: 0;
-    padding: 40px 1.25rem;
-    gap: 15px;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 40px 1.25rem;
+  gap: 15px;
 }
 
 dialog.modal .modal_mobile-nav__item {
-    display: flex;
-    width: 100%;
-    align-items: center;
-    gap: 0.75rem;
-    border: none;
-    background: transparent; 
-    cursor: pointer;
-    text-align: left;
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.75rem;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
 }
 
 dialog.modal .modal_mobile-nav__item:hover .modal_mobile-nav__icon {
-    background-color: #e5e7eb;
+  background-color: #e5e7eb;
 }
 
 dialog.modal .modal_mobile-nav__icon {
-    display: flex;
-    width: 2rem;
-    height: 2rem;
-    flex-shrink: 0;
-    align-items: center;
-    justify-content: center;
-    border-radius: 9999px;
-    background-color: #f3f4f6;
-    transition: background-color 0.15s ease;
+  display: flex;
+  width: 2rem;
+  height: 2rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background-color: #f3f4f6;
+  transition: background-color 0.15s ease;
 }
 
 dialog.modal .modal_mobile-nav__label {
-    font-size: 0.875rem;
-    line-height: 1.25rem;
-    font-weight: 500;
-    color: #09090b;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 500;
+  color: #09090b;
 }
 
 dialog.modal #modal-map-panel.is-hidden,
 dialog.modal #modal-venue-detail-panel.is-hidden,
 dialog.modal #modal-favorites-panel.is-hidden {
-    display: none !important;
+  display: none !important;
 }
 
 dialog.modal .modal-favorites-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.875rem;
-    align-content: start;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.875rem;
+  align-content: start;
 }
 
 @media (max-width: 479px) {
-    dialog.modal .modal-favorites-grid {
-        grid-template-columns: minmax(0, 1fr);
-    }
+  dialog.modal .modal-favorites-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 dialog.modal .modal-venue-gallery__swiper .swiper-slide {
-    height: 200px;
+  height: 200px;
 }
 
 dialog.modal .modal-venue-gallery__swiper .swiper-slide img {
-    display: block;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 /* Modal header — My Travel Geek AI bar */
 dialog.modal .modal_header {
-    display: flex;
-    flex-shrink: 0;
-    align-items: center;
-    gap: 0.625rem;
-    align-self: stretch;
-    background-color: #F3F4F6;
-    padding: 0.75rem 1rem;
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.625rem;
+  align-self: stretch;
+  background-color: #f3f4f6;
+  padding: 0.75rem 1rem;
 }
 
 dialog.modal .modal_header__brand {
-    display: flex;
-    min-width: 0;
-    flex: 1 1 auto;
-    align-items: center;
-    gap: 0.625rem;
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 0.625rem;
 }
 
 dialog.modal .modal_header__icon {
-    display: flex;
-    width: 1.5rem;
-    height: 1.5rem;
-    flex-shrink: 0;
-    align-items: center;
-    justify-content: center;
+  display: flex;
+  width: 1.5rem;
+  height: 1.5rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
 }
 
 dialog.modal .modal_header__spark {
-    display: block;
-    width: 1.375rem;
-    height: 1.375rem;
+  display: block;
+  width: 1.375rem;
+  height: 1.375rem;
 }
 
 dialog.modal .modal_header__title {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-size: 1.125rem;
-    line-height: 1.75rem;
-    font-weight: 600;
-    color: #09090b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 1.125rem;
+  line-height: 1.75rem;
+  font-weight: 600;
+  color: #09090b;
 }
 
 dialog.modal .modal_header__close-form {
-    margin: 0;
-    padding: 0;
-    flex-shrink: 0;
+  margin: 0;
+  padding: 0;
+  flex-shrink: 0;
 }
 
 dialog.modal .modal_header__close-btn {
-    display: flex;
-    border: none;
-    background: transparent;
-    cursor: pointer;
-    padding: 0;
+  display: flex;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
 }
 
 dialog.modal .modal_header__close-btn:hover {
-    background-color: #e4e4e7;
-    color: #09090b;
+  background-color: #e4e4e7;
+  color: #09090b;
 }
 
 dialog.modal .modal_header__close-btn .ti {
-    font-size: 0.75rem;
-    line-height: 1;
+  font-size: 0.75rem;
+  line-height: 1;
 }
 
 /* Body: sidebar + chat/map (column on small screens, row ≥768px) */
 dialog.modal .modal_body {
-    display: flex;
-    flex: 1 1 0%;
-    flex-direction: column;
-    align-items: stretch;
-    min-height: 0;
-    min-width: 0;
-    width: 100%;
-    overflow: hidden;
+  display: flex;
+  flex: 1 1 0%;
+  flex-direction: column;
+  align-items: stretch;
+  min-height: 0;
+  min-width: 0;
+  width: 100%;
+  overflow: hidden;
 }
-
-
 
 dialog.modal .modal_content {
-    display: flex;
-    flex: 1 1 0%;
-    flex-direction: column;
-    align-items: stretch;
-    min-height: 0;
-    min-width: 0;
-    width: 100%;
-    overflow: hidden;
+  display: flex;
+  flex: 1 1 0%;
+  flex-direction: column;
+  align-items: stretch;
+  min-height: 0;
+  min-width: 0;
+  width: 100%;
+  overflow: hidden;
 }
 
 @media (min-width: 768px) {
-    dialog.modal .modal_body {
-        flex-direction: row;
-    }
-}
-
-dialog.modal .modal_sidebar { 
+  dialog.modal .modal_body {
     flex-direction: row;
-    flex-shrink: 0;
-    align-items: center;
-    align-self: stretch;
-    gap: 0.625rem;
-    width: 100%;
-    padding: 0.625rem;
-    border-bottom: 1px solid #f3f4f6;
-    border-right: none;
+  }
+}
+
+dialog.modal .modal_sidebar {
+  flex-direction: row;
+  flex-shrink: 0;
+  align-items: center;
+  align-self: stretch;
+  gap: 0.625rem;
+  width: 100%;
+  padding: 0.625rem;
+  border-bottom: 1px solid #f3f4f6;
+  border-right: none;
 }
 
 @media (min-width: 768px) {
-    dialog.modal .modal_sidebar {
-        flex-direction: column;
-        width: 52px;
-        border-bottom: none;
-        border-right: 1px solid #f3f4f6;
-    }
+  dialog.modal .modal_sidebar {
+    flex-direction: column;
+    width: 52px;
+    border-bottom: none;
+    border-right: 1px solid #f3f4f6;
+  }
 }
 
 dialog.modal .modal_sidebar__btn {
-    display: flex;
-    width: 2rem;
-    height: 2rem;
-    align-items: center;
-    justify-content: center;
-    border: none;
-    border-radius: 1.5rem;
-    cursor: pointer;
-    padding: 0;
-    transition: background-color 0.15s ease, color 0.15s ease;
+  display: flex;
+  width: 2rem;
+  height: 2rem;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 1.5rem;
+  cursor: pointer;
+  padding: 0;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
 }
 
 dialog.modal .modal_sidebar__btn--active {
-    background-color: var(--secondary-800, #0f3a5d);
-    color: #fff;
+  background-color: var(--secondary-800, #0f3a5d);
+  color: #fff;
 }
 
 dialog.modal .modal_sidebar__btn--ghost {
-    background-color: #e5e7eb;
-    color: #52525b;
+  background-color: #e5e7eb;
+  color: #52525b;
 }
 
 dialog.modal .modal_sidebar__btn--ghost:hover {
-    background-color: #d1d5db;
+  background-color: #d1d5db;
 }
 
 dialog.modal .modal_sidebar__btn .ti {
-    font-size: 1rem;
-    line-height: 1;
+  font-size: 1rem;
+  line-height: 1;
 }
 
-
 @media (min-width: 768px) {
-    dialog.modal .modal_content {
-        flex-direction: row;
-    }
+  dialog.modal .modal_content {
+    flex-direction: row;
+  }
 }
 
 dialog.modal .modal-backdrop {
-    position: fixed;
-    inset: 0;
-    z-index: 0;
-    margin: 0;
-    padding: 0;
-    width: 100%;
-    max-width: none;
-    height: 100%;
-    border: none;
-    background: transparent;
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  border: none;
+  background: transparent;
 }
 
 dialog.modal .modal-backdrop__hit {
-    display: block;
-    width: 100%;
-    height: 100%;
-    min-height: 100dvh;
-    margin: 0;
-    padding: 0;
-    border: none;
-    cursor: default;
-    opacity: 0;
-    background: transparent;
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 100dvh;
+  margin: 0;
+  padding: 0;
+  border: none;
+  cursor: default;
+  opacity: 0;
+  background: transparent;
 }
 
 .sr-only {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border: 0;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
