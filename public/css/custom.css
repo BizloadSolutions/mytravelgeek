@@ -68,6 +68,40 @@ p {
   box-shadow: 0 1px 0 var(--border);
 }
 
+/* Chat typing indicator: one dot highlights in sequence */
+@keyframes tgTypingDot {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: translateY(0) scale(0.9);
+    background-color: var(--primary-100);
+    box-shadow: 0 0 0 rgba(0, 0, 0, 0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-3px) scale(1.25);
+    background-color: var(--main-primary);
+    box-shadow: 0 0 10px color-mix(in srgb, var(--main-primary) 55%, transparent);
+  }
+}
+
+.tg-typing-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  display: inline-block;
+  animation: tgTypingDot 0.9s infinite ease-in-out;
+  will-change: transform, opacity, background-color, box-shadow;
+}
+
+.tg-typing-dot--2 {
+  animation-delay: 0.2s;
+}
+
+.tg-typing-dot--3 {
+  animation-delay: 0.4s;
+}
+
 /* ----- Custom Itinerary modal (modal.php) — native <dialog> ----- */
 
 .modal {
