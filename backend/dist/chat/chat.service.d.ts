@@ -5,7 +5,12 @@ export declare class ChatService {
     createReply(body: ChatRequest): Promise<{
         reply: string;
     }>;
-    private buildSystemPrompt;
+    private isItineraryRequest;
+    private isChecklistRequest;
+    private resolveMaxTokens;
+    private buildBriefPrompt;
+    private buildChecklistPrompt;
+    private buildItineraryPrompt;
     private extractText;
     private normalizeMessages;
 }

@@ -26,9 +26,9 @@ const QUICK_PROMPTS = [
 function TypingIndicator() {
   return (
     <div className="flex w-fit gap-1.5 rounded-br-lg rounded-tl-lg rounded-tr-lg bg-[var(--primary-50)] p-3">
-      <span className="size-2 animate-pulse rounded-full bg-[var(--main-primary)]" />
-      <span className="size-2 animate-pulse rounded-full bg-[var(--primary-100)] [animation-delay:150ms]" />
-      <span className="size-2 animate-pulse rounded-full bg-[var(--primary-100)] [animation-delay:300ms]" />
+      <span className="size-2 animate-bounce rounded-full bg-[var(--main-primary)] [animation-duration:900ms]" />
+      <span className="size-2 animate-bounce rounded-full bg-[var(--primary-100)] [animation-delay:150ms] [animation-duration:900ms]" />
+      <span className="size-2 animate-bounce rounded-full bg-[var(--primary-100)] [animation-delay:300ms] [animation-duration:900ms]" />
     </div>
   );
 }
@@ -153,24 +153,11 @@ export default function ChatModal({ open, initialQuery = "" }: ChatModalProps) {
         ref={scrollRef}
         className="flex min-h-0 max-h-[calc(100dvh-137px)] flex-1 flex-col gap-3.5 self-stretch overflow-y-auto overscroll-contain"
       >
-        <div className="flex w-full lg:max-w-[80%] max-w-[90%] flex-col gap-[25px] rounded-br-lg rounded-tl-lg rounded-tr-lg bg-[var(--primary-50)] p-3">
-          <div className="flex flex-col gap-2.5 self-stretch">
-            <p className="m-0 text-sm font-normal">
-              Hi! I&apos;m My Travel Geek AI - your own personal Travel Genius.
-              I can help you with:
-            </p>
-            <ul className="m-0 list-disc space-y-1 pl-5 text-sm font-medium">
-              <li>Flights</li>
-              <li>Custom Itineraries</li>
-              <li>Hotels + Vacation Rentals</li>
-              <li>Restaurants + Bars</li>
-              <li>Tours + Excursions</li>
-              <li>Travel Safety</li>
-              <li>Most Direct Routes</li>
-              <li>Local Customs + Slang</li>
-              <li>Visas</li>
-            </ul>
-          </div>
+        <div className="flex w-full lg:max-w-[80%] max-w-[90%] flex-col gap-2.5 rounded-br-lg rounded-tl-lg rounded-tr-lg bg-[var(--primary-50)] p-3 text-sm leading-relaxed">
+          <p className="m-0">
+            Hi! I&apos;m your personal travel genius — ask me anything about
+            trips, stays, food, or local tips.
+          </p>
         </div>
 
         <div className="flex gap-2.5 self-stretch rounded-2xl bg-white p-3 shadow-[0px_2px_5px_0px_rgba(0,0,0,0.2)] mx-3">
