@@ -4,7 +4,6 @@ import { useState, type FormEvent } from "react";
 import Image from "next/image";
 import MainTravelGeekModal from "@/components/modals/MainTravelGeekModal";
 
-// rahul
 
 const travelSuggestions = [
   "Greek islands with few tourists",
