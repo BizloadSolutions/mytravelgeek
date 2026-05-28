@@ -16,16 +16,6 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head suppressHydrationWarning>
-
-        <script nowprocket data-noptimize="1" data-cfasync="false" data-wpfc-render="false" seraph-accel-crit="1" data-no-defer="1">
-  (function () {
-      var script = document.createElement("script");
-      script.async = 1;
-      script.src = 'https://tpembars.com/NTMxNzAw.js?t=531700';
-      document.head.appendChild(script);
-  })();
-</script>
-        
         <script src="/js/strip-extension-attrs.js" />
         <meta name="msapplication-TileColor" content="#ffffff" />
         <meta
@@ -99,6 +89,16 @@ export default function RootLayout({
         <Script src="/js/modal.js" strategy="afterInteractive" />
 
         <Script src="/js/custom.js" strategy="afterInteractive" />
+
+        <Script nowprocket data-noptimize="1" data-cfasync="false" data-wpfc-render="false" seraph-accel-crit="1" data-no-defer="1">
+  (function () {
+      var script = document.createElement("script");
+      script.async = 1;
+      script.src = 'https://tpembars.com/NTMxNzAw.js?t=531700';
+      document.head.appendChild(script);
+  })();
+</Script>
+        
       </body>
     </html>
   );
