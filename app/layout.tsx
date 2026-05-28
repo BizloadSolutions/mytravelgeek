@@ -90,7 +90,7 @@ export default function RootLayout({
 
         <Script src="/js/custom.js" strategy="afterInteractive" />
 
-        <Script src="/js/travelpayout.js" strategy="afterInteractive" nowprocket data-noptimize="1" data-cfasync="false" data-wpfc-render="false" seraph-accel-crit="1" data-no-defer="1" />
+        <Script src="/js/travelpayout.js" strategy="afterInteractive" />
         
       </body>
     </html>
