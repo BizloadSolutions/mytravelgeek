@@ -1,0 +1,101 @@
+:root {
+  --main-primary: #F26537;
+  --main-secondary: #0F3A5D;
+  --text-text-color: #09090B;
+  --text-text-color-muted: var(--var-700);
+  --text-text-color-muted-extra: #52525B;
+  --bg-background: #FFFFFF;
+  --bg-background-muted: #fafafa;
+  --bg-background-muted-extra: #f5f5f5;
+  --card-background-color: #FFFFFF;
+  --border: #0000001A;
+  --primary-50: #FFF5F2;
+  --primary-100: #FCDACF;
+  --primary-200: #F9B69F;
+  --primary-300: #F6916F;
+  --primary-400: #F26537;
+  --primary-500: #F0470F;
+  --primary-600: #C0390C;
+  --primary-700: #902B09;
+  --primary-800: #601D06;
+  --primary-900: #300E03;
+  --primary-950: #220A02;
+  --secondary-50: #F5FAFF;
+  --secondary-100: #D3E7F8;
+  --secondary-200: #A7D0F1;
+  --secondary-300: #7BB8EA;
+  --secondary-400: #50A0E2;
+  --secondary-500: #2489DB;
+  --secondary-600: #1D6DAF;
+  --secondary-700: #155284;
+  --secondary-800: #0F3A5D;
+  --secondary-900: #071B2C;
+  --secondary-950: #05131F; 
+}
+
+.dark {
+  --main-primary: #F26537;
+  --main-secondary: #0F3A5D;
+  --text-text-color: var(--var-100);
+  --text-text-color-muted: var(--var-300);
+  --text-text-color-muted-extra: var(--var-400);
+  --bg-background: var(--var-950);
+  --bg-background-muted: var(--var-900);
+  --bg-background-muted-extra: var(--var-800);
+  --card-background-color: var(--var-900);
+  --border: var(--var-800);
+  --primary-50: #F26537;
+  --primary-100: #0F3A5D;
+  --primary-200: #0F3A5D;
+  --primary-300: #0F3A5D;
+  --primary-400: #0F3A5D;
+  --primary-500: #0F3A5D;
+  --primary-600: #0F3A5D;
+  --primary-700: #0F3A5D;
+  --primary-800: #0F3A5D;
+  --primary-900: #0F3A5D;
+  --primary-950: #0F3A5D;
+  --secondary-50: #F26537;
+  --secondary-100: #0F3A5D;
+  --secondary-200: #0F3A5D;
+  --secondary-300: #0F3A5D;
+  --secondary-400: #0F3A5D;
+  --secondary-500: #0F3A5D;
+  --secondary-600: #0F3A5D;
+  --secondary-700: #0F3A5D;
+  --secondary-800: #0F3A5D;
+  --secondary-900: #0F3A5D;
+  --secondary-950: #0F3A5D;
+}
+
+.text-text-color {
+  color: var(--text-text-color);
+}
+
+.text-text-color-muted {
+  color: var(--text-text-color-muted);
+}
+
+.text-text-color-muted-extra {
+  color: var(--text-text-color-muted-extra);
+}
+
+.bg-background {
+  background-color: var(--bg-background);
+}
+
+.bg-background-muted {
+  background-color: var(--bg-background-muted);
+}
+
+.bg-background-muted-extra {
+  background-color: var(--bg-background-muted-extra);
+}
+
+.card-background-color {
+  color: var(--card-background-color);
+}
+
+.border {
+  border-color: var(--border);
+} 

@@ -1,0 +1,39 @@
+* {
+  box-sizing: border-box;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+*::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-family);
+  font-size: 16px;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  background-color: var(--bg-background);
+}
+
+.container {
+  max-width: 1360px !important;
+  margin: 0 auto;
+  padding: 0px 15px;
+}
+
+.container-fluid {
+  max-width: 100%;
+  padding: 0 40px;
+}
+
+a {
+  transition: all 0.3s ease-in-out;
+}
