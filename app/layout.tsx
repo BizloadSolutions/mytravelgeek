@@ -90,14 +90,7 @@ export default function RootLayout({
 
         <Script src="/js/custom.js" strategy="afterInteractive" />
 
-        <Script nowprocket data-noptimize="1" data-cfasync="false" data-wpfc-render="false" seraph-accel-crit="1" data-no-defer="1">
-  (function () {
-      var script = document.createElement("script");
-      script.async = 1;
-      script.src = 'https://tpembars.com/NTMxNzAw.js?t=531700';
-      document.head.appendChild(script);
-  })();
-</Script>
+        <Script  src="/js/travelpayout.js" nowprocket data-noptimize="1" data-cfasync="false" data-wpfc-render="false" seraph-accel-crit="1" data-no-defer="1" />
         
       </body>
     </html>
