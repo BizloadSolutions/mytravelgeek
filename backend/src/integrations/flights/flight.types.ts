@@ -35,6 +35,7 @@ export type TravelpayoutsPriceRow = {
 
 export type FlightStopSegment = {
   airlineName: string;
+  airlineIata?: string;
   airlineLogoUrl?: string;
   connectionNote?: string;
   departureTime: string;
@@ -49,6 +50,7 @@ export type FlightOptionCard = {
   badge?: string;
   badgeVariant?: "best" | "cheapest";
   airlineName: string;
+  airlineIata?: string;
   airlineLogoUrl?: string;
   routeCode: string;
   travelDate: string;

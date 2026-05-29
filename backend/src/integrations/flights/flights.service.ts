@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "../../config/config.service";
 import { airlineDisplayName } from "./airline-names";
+import { airlineLogoUrl } from "./airline-logo";
 import { cityNameForCode } from "./airport-codes";
 import { FLIGHTS_PAGE_SIZE } from "../../helper/constant";
 import { addDepartMonths } from "./flight-intent";
@@ -141,6 +142,8 @@ export class FlightsService {
       badge,
       badgeVariant,
       airlineName,
+      airlineIata: row.main_airline?.trim().toUpperCase(),
+      airlineLogoUrl: airlineLogoUrl(row.main_airline),
       routeCode,
       travelDate,
       departureTime: this.formatTime(depDate),
