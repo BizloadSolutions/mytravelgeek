@@ -1,5 +1,7 @@
 export type FlightStopSegment = {
   airlineName: string;
+  /** IATA airline code for logo + name lookup on the frontend. */
+  airlineIata?: string;
   airlineLogoUrl?: string;
   connectionNote?: string;
   departureTime: string;
@@ -14,6 +16,8 @@ export type FlightOptionCard = {
   badge?: string;
   badgeVariant?: "best" | "cheapest";
   airlineName: string;
+  /** IATA airline code for logo + name lookup on the frontend. */
+  airlineIata?: string;
   airlineLogoUrl?: string;
   routeCode: string;
   travelDate: string;

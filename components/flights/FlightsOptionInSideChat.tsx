@@ -1,6 +1,10 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import {
+  formatFlightMetaLine,
+  resolveAirlineDisplayName,
+} from "@/lib/airline-names";
 import { fetchFlightPage } from "@/lib/flights-api";
 import type {
   FlightOptionCard,
@@ -102,6 +106,8 @@ function FlightPathGraphic({ stopsLabel }: { stopsLabel: string }) {
 }
 
 function AirlineAvatar({ name, logoUrl }: { name: string; logoUrl?: string }) {
+  const [logoFailed, setLogoFailed] = useState(false);
+
   const initials = name
     .split(/\s+/)
     .map((w) => w[0])
@@ -109,13 +115,23 @@ function AirlineAvatar({ name, logoUrl }: { name: string; logoUrl?: string }) {
     .slice(0, 2)
     .toUpperCase();
 
+  const showLogo = Boolean(logoUrl) && !logoFailed;
+
   return (
-    <span className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-400 text-[10px] font-bold text-white">
-      {logoUrl ? (
+    <span
+      className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white text-[10px] font-bold text-slate-600 ring-1 ring-zinc-200"
+      title={name}
+    >
+      {showLogo ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={logoUrl} alt="" className="size-full object-cover" />
+        <img
+          src={logoUrl}
+          alt={name}
+          className="size-full object-contain p-0.5"
+          onError={() => setLogoFailed(true)}
+        />
       ) : (
-        initials
+        <span className="bg-slate-400 px-1 text-white">{initials}</span>
       )}
     </span>
   );
@@ -176,6 +192,12 @@ function FlightCard({ flight }: { flight: FlightOptionCard }) {
   const [stopsOpen, setStopsOpen] = useState(false);
   const hasStops = Boolean(flight.stops?.length);
 
+  const airlineLabel = resolveAirlineDisplayName(
+    flight.airlineIata,
+    flight.airlineName,
+  );
+  const metaLine = formatFlightMetaLine(flight.metaLine, airlineLabel);
+
   const badgeClass =
     flight.badgeVariant === "cheapest"
       ? "border-green-100 bg-green-50 text-green-600"
@@ -193,13 +215,11 @@ function FlightCard({ flight }: { flight: FlightOptionCard }) {
           <div className="flex items-center gap-2.5 self-stretch">
             <div className="flex min-w-0 flex-1 items-center gap-2">
               <AirlineAvatar
-                name={flight.airlineName}
+                name={airlineLabel}
                 logoUrl={flight.airlineLogoUrl}
               />
               <div className="flex min-w-0 flex-col justify-center gap-0.5">
-                <span className="text-sm font-semibold">
-                  {flight.airlineName}
-                </span>
+                <span className="text-sm font-semibold">{airlineLabel}</span>
                 <span className="text-xs font-normal text-zinc-600">
                   {flight.routeCode} &bull; {flight.travelDate}
                 </span>
@@ -232,9 +252,7 @@ function FlightCard({ flight }: { flight: FlightOptionCard }) {
               </span>
             </div>
           </div>
-          <p className="m-0 text-xs font-normal text-zinc-600">
-            {flight.metaLine}
-          </p>
+          <p className="m-0 text-xs font-normal text-zinc-600">{metaLine}</p>
           {hasStops ? (
             <>
               <button
