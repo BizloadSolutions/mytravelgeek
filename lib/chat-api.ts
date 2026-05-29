@@ -15,7 +15,7 @@ function parseErrorMessage(data: ChatErrorBody | undefined, fallback: string) {
 
 export async function sendChatMessage(
   messages: ChatMessage[],
-): Promise<string> {
+): Promise<ChatResponse> {
   const response = await fetch("/api/chat", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -39,5 +39,5 @@ export async function sendChatMessage(
     throw new Error("Unexpected response from Travel Geek AI.");
   }
 
-  return (data as ChatResponse).reply;
+  return data as ChatResponse;
 }
