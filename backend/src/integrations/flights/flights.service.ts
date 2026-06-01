@@ -33,6 +33,7 @@ export class FlightsService {
     let searchParams: FlightSearchParams = { ...params, limit, offset };
 
     let rows = await this.travelpayouts.searchOneWay(searchParams);
+    rows = this.filterRowsByDepartDate(rows, searchParams.departDate);
 
     if (!rows.length && offset === 0) {
       const nextMonth = addDepartMonths(params.departMonth, 1);
@@ -42,6 +43,7 @@ export class FlightsService {
         );
         searchParams = { ...searchParams, departMonth: nextMonth };
         rows = await this.travelpayouts.searchOneWay(searchParams);
+        rows = this.filterRowsByDepartDate(rows, searchParams.departDate);
       }
     }
 
@@ -55,7 +57,9 @@ export class FlightsService {
       this.mapRowToCard(row, searchParams, offset + index),
     );
 
-    const travelDateLabel = this.formatTravelDateLabel(rows[0]?.departure_at);
+    const travelDateLabel = searchParams.departDate
+      ? this.formatTravelDateLabelFromYmd(searchParams.departDate)
+      : this.formatTravelDateLabel(rows[0]?.departure_at);
     const passengersLabel =
       searchParams.adults === 1 ? "1 adult" : `${searchParams.adults} adults`;
 
@@ -84,9 +88,26 @@ export class FlightsService {
       origin: params.origin,
       destination: params.destination,
       departMonth: params.departMonth,
+      departDate: params.departDate,
       adults: params.adults,
       noLowcost: params.noLowcost,
     };
+  }
+
+  private filterRowsByDepartDate(
+    rows: TravelpayoutsPriceRow[],
+    departDate?: string,
+  ): TravelpayoutsPriceRow[] {
+    if (!departDate) return rows;
+    return rows.filter((row) =>
+      this.departureMatchesDate(row.departure_at, departDate),
+    );
+  }
+
+  private departureMatchesDate(iso: string | undefined, targetYmd: string) {
+    if (!iso) return false;
+    const day = iso.length >= 10 ? iso.slice(0, 10) : iso;
+    return day === targetYmd;
   }
 
   private mapRowToCard(
@@ -192,6 +213,14 @@ export class FlightsService {
       month: "short",
       year: "2-digit",
     });
+  }
+
+  private formatTravelDateLabelFromYmd(ymd: string) {
+    const [year, month, day] = ymd.split("-").map(Number);
+    if (!year || !month || !day) return "";
+    return this.formatTravelDateLabel(
+      new Date(year, month - 1, day).toISOString(),
+    );
   }
 
   private formatTravelDateLabel(iso?: string) {

@@ -36,6 +36,7 @@ export type FlightSearchContext = {
   origin: string;
   destination: string;
   departMonth: string;
+  departDate?: string;
   adults: number;
   noLowcost: boolean;
 };

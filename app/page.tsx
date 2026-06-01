@@ -480,7 +480,7 @@ export default function HomePage() {
 
       <section className="relative">
         <div className="container-fluid">
-          <div className="relative overflow-hidden rounded-[30px] lg:min-h-[650px] flex items-center justify-center bg-black bg-[url('./images/chat-in-any.png')] bg-cover bg-center px-4 py-[clamp(40px,5vw,100px)] lg:px-[clamp(16px,4vw,100px)]">
+          <div className="relative overflow-hidden rounded-[30px] lg:min-h-[650px] flex items-center justify-center bg-black bg-chat-in-any bg-cover bg-center px-4 py-[clamp(40px,5vw,100px)] lg:px-[clamp(16px,4vw,100px)]">
             <div className="flex items-center justify-center gap-10">
               <div className="hidden lg:block flex-1">
                 <div
@@ -689,7 +689,7 @@ export default function HomePage() {
 
       <section>
         <div className="container">
-          <div className="rounded-[15px] px-4 py-[clamp(40px,5vw,130px)] bg-[url('./images/my-travel.png')] bg-cover bg-center">
+          <div className="rounded-[15px] px-4 py-[clamp(40px,5vw,130px)] bg-my-travel bg-cover bg-center">
             <div className="max-w-[600px] mx-auto">
               <div className="flex w-full max-w-[732px] flex-col items-center gap-[15px] text-center">
                 <h2 className="text-balance text-xl sm:text-2xl md:text-3xl xl:text-4xl font-semibold text-white">

@@ -1,7 +1,10 @@
 export type FlightSearchContext = {
   origin: string;
   destination: string;
+  /** First day of month for Travelpayouts `depart_months` (YYYY-MM-01). */
   departMonth: string;
+  /** When set, only flights departing on this calendar day (YYYY-MM-DD) are returned. */
+  departDate?: string;
   adults: number;
   noLowcost: boolean;
 };

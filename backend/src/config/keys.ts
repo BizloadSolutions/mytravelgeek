@@ -8,14 +8,11 @@ function readEnv(key: string): string | undefined {
 }
 
 function loadEnvFiles() {
-  try {
-    const dotenv = require("dotenv") as typeof import("dotenv");
-    const cwd = process.cwd();
-    dotenv.config({ path: resolve(cwd, ".env") });
-    dotenv.config({ path: resolve(cwd, "../.env") });
-  } catch {
-    // dotenv optional
-  }
+  const cwd = process.cwd();
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const dotenv = require("dotenv") as typeof import("dotenv");
+  dotenv.config({ path: resolve(cwd, ".env") });
+  dotenv.config({ path: resolve(cwd, "../.env") });
 }
 
 export class Keys {
