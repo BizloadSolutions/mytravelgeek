@@ -81,7 +81,8 @@ p {
     opacity: 1;
     transform: translateY(-3px) scale(1.25);
     background-color: var(--main-primary);
-    box-shadow: 0 0 10px color-mix(in srgb, var(--main-primary) 55%, transparent);
+    box-shadow: 0 0 10px
+      color-mix(in srgb, var(--main-primary) 55%, transparent);
   }
 }
 

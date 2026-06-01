@@ -42,7 +42,7 @@ let ChatService = ChatService_1 = class ChatService {
         if (flightMode) {
             const params = (0, flight_intent_1.buildFlightSearchParams)(messages);
             if (params) {
-                this.logger.log(`Flight search: ${params.origin} → ${params.destination}, month ${params.departMonth}`);
+                this.logger.log(`Flight search: ${params.origin} → ${params.destination}, month ${params.departMonth}${params.departDate ? `, day ${params.departDate}` : ""}`);
                 try {
                     const result = await this.flightsService.search(params);
                     flightsPayload = result.payload;

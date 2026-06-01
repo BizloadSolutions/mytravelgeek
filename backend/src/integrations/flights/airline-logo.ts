@@ -7,7 +7,7 @@ const AVS_LOGO_CDN = "https://pics.avs.io";
  */
 export function airlineLogoUrl(
   iataCode?: string,
-  size = 64,
+  size = 128,
 ): string | undefined {
   if (!iataCode?.trim()) return undefined;
 

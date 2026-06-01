@@ -3,9 +3,24 @@ import Script from "next/script";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import SuppressExtensionHydrationWarning from "@/components/SuppressExtensionHydrationWarning";
-
 export const metadata: Metadata = {
-  title: "AI for Travel and Lifestyle Guide",
+  title: "My Travel Geek AI",
+  description: "Your Personal Travel Expert, Anytime",
+  icons: {
+    icon: [
+      {
+        url: "/favicon.svg",
+        type: "image/svg+xml",
+        media: "(prefers-color-scheme: light)",
+      },
+      {
+        url: "/favicon-light.svg",
+        type: "image/svg+xml",
+        media: "(prefers-color-scheme: dark)",
+      },
+    ],
+    shortcut: "/favicon.svg",
+  },
 };
 
 export default function RootLayout({
@@ -16,7 +31,6 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head suppressHydrationWarning>
-       
         <script src="/js/strip-extension-attrs.js" />
         <meta name="msapplication-TileColor" content="#ffffff" />
         <meta

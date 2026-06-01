@@ -59,7 +59,7 @@ export class ChatService {
       const params = buildFlightSearchParams(messages);
       if (params) {
         this.logger.log(
-          `Flight search: ${params.origin} → ${params.destination}, month ${params.departMonth}`,
+          `Flight search: ${params.origin} → ${params.destination}, month ${params.departMonth}${params.departDate ? `, day ${params.departDate}` : ""}`,
         );
         try {
           const result = await this.flightsService.search(params);
