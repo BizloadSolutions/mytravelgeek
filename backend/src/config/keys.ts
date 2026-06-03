@@ -35,7 +35,7 @@ export class Keys {
 
   prepareKeys() {
     this.SECRET = readEnv("SECRET");
-    this.PORT = readEnv("PORT") ?? "";
+    this.PORT = readEnv("PORT") ?? readEnv("NEST_PORT") ?? "";
     this.BACKEND_URL = readEnv("BACKEND_URL");
     this.ANTHROPIC_MODEL = readEnv("ANTHROPIC_MODEL") ?? "";
     this.ANTHROPIC_MAX_TOKENS = readEnv("ANTHROPIC_MAX_TOKENS") ?? "";
