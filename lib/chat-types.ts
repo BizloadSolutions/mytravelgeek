@@ -12,7 +12,17 @@ export type ChatRequest = {
   messages: ChatMessage[];
 };
 
+export type ChatIntentType =
+  | "flight_search"
+  | "hotel_search"
+  | "itinerary"
+  | "checklist"
+  | "place_info"
+  | "trip_plan"
+  | "general";
+
 export type ChatResponse = {
   reply: string;
+  intent?: ChatIntentType;
   flights?: FlightsChatPayload;
 };

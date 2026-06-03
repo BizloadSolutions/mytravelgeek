@@ -51,6 +51,7 @@ export type FlightsPagination = {
 export type FlightsChatPayload = {
   routeTitle?: string;
   intro: string;
+  availabilityNote?: string;
   cabinClass?: string;
   passengersLabel?: string;
   originCode?: string;

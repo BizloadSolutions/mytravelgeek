@@ -23,7 +23,10 @@ export class GraphqlClientService {
       body: JSON.stringify(body),
     });
 
+    console.log("response -------------------------------->", response);
+
     const text = await response.text();
+    console.log("text -------------------------------->", text);
 
     if (!response.ok) {
       throw new Error(`GraphQL HTTP ${response.status}: ${text.slice(0, 300)}`);

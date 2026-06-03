@@ -1,10 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import {
-  formatFlightMetaLine,
-  resolveAirlineDisplayName,
-} from "@/lib/airline-names";
+import { useEffect, useState } from "react";
 import { fetchFlightPage } from "@/lib/flights-api";
 import type {
   FlightOptionCard,
@@ -12,72 +8,6 @@ import type {
   FlightStopSegment,
   FlightsPagination,
 } from "@/lib/flight-types";
-
-const DEFAULT_FLIGHTS: FlightOptionCard[] = [
-  {
-    id: "demo-1",
-    label: "Flight 1 – Best",
-    badge: "BEST",
-    badgeVariant: "best",
-    airlineName: "AirAsia",
-    routeCode: "DEL > BKK",
-    travelDate: "May 30, 26",
-    departureTime: "8:55 PM",
-    departureCity: "Delhi",
-    arrivalTime: "2:40 AM",
-    arrivalCity: "Bangkok",
-    stopsLabel: "Non-stop",
-    metaLine: "AirAsia • Economy • Non-stop • 4h 15m",
-    totalPrice: "₹28,245",
-    reserveUrl: "https://www.aviasales.com/",
-  },
-  {
-    id: "demo-2",
-    label: "Flight 2",
-    badge: "CHEAPEST",
-    badgeVariant: "cheapest",
-    airlineName: "Thai Airways",
-    routeCode: "DEL > BKK",
-    travelDate: "May 30, 26",
-    departureTime: "6:10 AM",
-    departureCity: "Delhi",
-    arrivalTime: "11:45 AM",
-    arrivalCity: "Bangkok",
-    stopsLabel: "1 stop",
-    metaLine: "Thai Airways • Economy • 1 stop • 5h 35m",
-    totalPrice: "₹31,120",
-    reserveUrl: "https://www.aviasales.com/",
-    stops: [
-      {
-        airlineName: "Thai Airways",
-        connectionNote: "2h connect in airport",
-        departureTime: "6:10 AM",
-        departureCity: "Delhi",
-        arrivalTime: "8:30 AM",
-        arrivalCity: "Singapore",
-      },
-      {
-        airlineName: "Thai Airways",
-        departureTime: "10:30 AM",
-        departureCity: "Singapore",
-        arrivalTime: "11:45 AM",
-        arrivalCity: "Bangkok",
-      },
-    ],
-  },
-];
-
-const DEFAULT_PAYLOAD: FlightsChatPayload = {
-  routeTitle: "Bangkok",
-  intro:
-    "I found the following flights in Economy class for 2 adults from DEL to BKK on May 30th:",
-  cabinClass: "Economy",
-  passengersLabel: "2 adults",
-  originCode: "DEL",
-  destinationCode: "BKK",
-  travelDateLabel: "May 30th",
-  flights: DEFAULT_FLIGHTS,
-};
 
 type Props = Partial<FlightsChatPayload>;
 
@@ -192,12 +122,6 @@ function FlightCard({ flight }: { flight: FlightOptionCard }) {
   const [stopsOpen, setStopsOpen] = useState(false);
   const hasStops = Boolean(flight.stops?.length);
 
-  const airlineLabel = resolveAirlineDisplayName(
-    flight.airlineIata,
-    flight.airlineName,
-  );
-  const metaLine = formatFlightMetaLine(flight.metaLine, airlineLabel);
-
   const badgeClass =
     flight.badgeVariant === "cheapest"
       ? "border-green-100 bg-green-50 text-green-600"
@@ -215,11 +139,13 @@ function FlightCard({ flight }: { flight: FlightOptionCard }) {
           <div className="flex items-center gap-2.5 self-stretch">
             <div className="flex min-w-0 flex-1 items-center gap-2">
               <AirlineAvatar
-                name={airlineLabel}
+                name={flight.airlineName}
                 logoUrl={flight.airlineLogoUrl}
               />
               <div className="flex min-w-0 flex-col justify-center gap-0.5">
-                <span className="text-sm font-semibold">{airlineLabel}</span>
+                <span className="text-sm font-semibold">
+                  {flight.airlineName}
+                </span>
                 <span className="text-xs font-normal text-zinc-600">
                   {flight.routeCode} &bull; {flight.travelDate}
                 </span>
@@ -252,7 +178,9 @@ function FlightCard({ flight }: { flight: FlightOptionCard }) {
               </span>
             </div>
           </div>
-          <p className="m-0 text-xs font-normal text-zinc-600">{metaLine}</p>
+          <p className="m-0 text-xs font-normal text-zinc-600">
+            {flight.metaLine}
+          </p>
           {hasStops ? (
             <>
               <button
