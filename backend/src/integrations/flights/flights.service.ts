@@ -1,10 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "../../config/config.service";
-import { airlineDisplayName } from "./airline-names";
-import { airlineLogoUrl } from "./airline-logo";
-import { cityNameForCode } from "./airport-codes";
 import { FLIGHTS_PAGE_SIZE } from "../../helper/constant";
-import { addDepartMonths } from "./flight-intent";
+import { buildAlternateDepartMonths } from "./flight-intent";
 import type {
   FlightOptionCard,
   FlightSearchContext,
@@ -28,44 +25,116 @@ export class FlightsService {
   ) {}
 
   async search(params: FlightSearchParams): Promise<FlightSearchResult> {
+    this.logger.log(
+      `Searching flights for ${params.origin}→${params.destination} on ${params.departMonth}${params.departDate ? ` on ${params.departDate}` : ""}`,
+    );
     const limit = params.limit || FLIGHTS_PAGE_SIZE;
     const offset = params.offset ?? 0;
-    let searchParams: FlightSearchParams = { ...params, limit, offset };
 
-    let rows = await this.travelpayouts.searchOneWay(searchParams);
-    rows = this.filterRowsByDepartDate(rows, searchParams.departDate);
+    // Round-trip: exact date search only (no month probing).
+    if (params.returnDate && params.departDate) {
+      const rows = await this.travelpayouts.searchRoundTrip({
+        ...params,
+        limit,
+        offset,
+      });
+      if (!rows.length) return { payload: null, rawCount: 0, hasMore: false };
 
-    if (!rows.length && offset === 0) {
-      const nextMonth = addDepartMonths(params.departMonth, 1);
-      if (nextMonth !== params.departMonth) {
-        this.logger.log(
-          `No flights for ${params.departMonth}; retrying ${nextMonth}`,
-        );
-        searchParams = { ...searchParams, departMonth: nextMonth };
-        rows = await this.travelpayouts.searchOneWay(searchParams);
-        rows = this.filterRowsByDepartDate(rows, searchParams.departDate);
+      const hasMore = rows.length >= limit;
+      const flights = rows.map((row, index) =>
+        this.mapRowToCard(row, params, offset + index),
+      );
+
+      const travelDateLabel = this.formatTravelDateLabelFromYmd(
+        params.departDate,
+      );
+      const passengersLabel =
+        params.adults === 1 ? "1 adult" : `${params.adults} adults`;
+
+      const payload: FlightsChatPayload = {
+        routeTitle: params.destination,
+        intro: this.buildIntro(params, passengersLabel, travelDateLabel),
+        cabinClass: "Economy",
+        passengersLabel,
+        originCode: params.origin,
+        destinationCode: params.destination,
+        travelDateLabel,
+        flights,
+        pagination: {
+          hasMore,
+          offset,
+          limit,
+          search: this.toSearchContext(params),
+        },
+      };
+
+      return { payload, rawCount: rows.length, hasMore };
+    }
+
+    if (offset > 0) {
+      return this.searchPage(params, limit, offset);
+    }
+
+    // If user provided an exact date, do NOT probe other months.
+    // Otherwise it looks like we're "searching multiple dates" even though we're only trying months.
+    const monthsToTry = params.departDate
+      ? [params.departMonth]
+      : buildAlternateDepartMonths(params.departMonth);
+    let rows: TravelpayoutsPriceRow[] = [];
+    let usedMonth = params.departMonth;
+    let availabilityNote: string | undefined;
+
+    for (const month of monthsToTry) {
+      const monthParams = { ...params, departMonth: month, limit, offset: 0 };
+      const raw = await this.travelpayouts.searchOneWay(monthParams);
+      const filtered = this.applyDepartDateFilter(
+        raw,
+        params.departDate,
+        limit,
+      );
+
+      if (filtered.length > 0) {
+        rows = filtered;
+        usedMonth = month;
+        if (month !== params.departMonth) {
+          availabilityNote = `Live prices for ${this.formatMonthYearLabel(params.departMonth)} are not available yet — showing ${this.formatMonthYearLabel(month)} options instead.`;
+        }
+        break;
       }
+
+      this.logger.debug(
+        `No flights for ${params.origin}→${params.destination}${params.departDate ? ` on ${params.departDate}` : ""} in month ${month} (raw=${raw.length})`,
+      );
     }
 
     if (!rows.length) {
       return { payload: null, rawCount: 0, hasMore: false };
     }
 
+    const searchParams: FlightSearchParams = {
+      ...params,
+      departMonth: usedMonth,
+      limit,
+      offset: 0,
+    };
+
     const hasMore = rows.length >= limit;
     const searchContext = this.toSearchContext(searchParams);
     const flights = rows.map((row, index) =>
-      this.mapRowToCard(row, searchParams, offset + index),
+      this.mapRowToCard(row, searchParams, index),
     );
 
-    const travelDateLabel = searchParams.departDate
-      ? this.formatTravelDateLabelFromYmd(searchParams.departDate)
+    const travelDateLabel = params.departDate
+      ? this.formatTravelDateLabelFromYmd(params.departDate)
       : this.formatTravelDateLabel(rows[0]?.departure_at);
+
     const passengersLabel =
       searchParams.adults === 1 ? "1 adult" : `${searchParams.adults} adults`;
 
     const payload: FlightsChatPayload = {
-      routeTitle: cityNameForCode(searchParams.destination),
+      routeTitle: searchParams.destination,
       intro: this.buildIntro(searchParams, passengersLabel, travelDateLabel),
+      availabilityNote,
       cabinClass: "Economy",
       passengersLabel,
       originCode: searchParams.origin,
@@ -74,9 +143,57 @@ export class FlightsService {
       flights,
       pagination: {
         hasMore,
-        offset,
+        offset: 0,
         limit,
         search: searchContext,
+      },
+    };
+
+    return { payload, rawCount: rows.length, hasMore };
+  }
+
+  private async searchPage(
+    params: FlightSearchParams,
+    limit: number,
+    offset: number,
+  ): Promise<FlightSearchResult> {
+    let rows = await this.travelpayouts.searchOneWay({
+      ...params,
+      limit,
+      offset,
+    });
+    rows = this.applyDepartDateFilter(rows, params.departDate, limit);
+
+    if (!rows.length) {
+      return { payload: null, rawCount: 0, hasMore: false };
+    }
+
+    const hasMore = rows.length >= limit;
+    const flights = rows.map((row, index) =>
+      this.mapRowToCard(row, params, offset + index),
+    );
+
+    const travelDateLabel = params.departDate
+      ? this.formatTravelDateLabelFromYmd(params.departDate)
+      : this.formatTravelDateLabel(rows[0]?.departure_at);
+
+    const passengersLabel =
+      params.adults === 1 ? "1 adult" : `${params.adults} adults`;
+
+    const payload: FlightsChatPayload = {
+      routeTitle: params.destination,
+      intro: this.buildIntro(params, passengersLabel, travelDateLabel),
+      cabinClass: "Economy",
+      passengersLabel,
+      originCode: params.origin,
+      destinationCode: params.destination,
+      travelDateLabel,
+      flights,
+      pagination: {
+        hasMore,
+        offset,
+        limit,
+        search: this.toSearchContext(params),
       },
     };
 
@@ -94,20 +211,53 @@ export class FlightsService {
     };
   }
 
-  private filterRowsByDepartDate(
+  /**
+   * Day filter:
+   * - If the user provided an exact `departDate`, prefer flights on that day.
+   * - If none exist (common with month-based price feeds), fall back to the closest dates
+   *   so the UI can still show live options instead of "no flights".
+   */
+  private applyDepartDateFilter(
     rows: TravelpayoutsPriceRow[],
-    departDate?: string,
+    departDate: string | undefined,
+    limit: number,
   ): TravelpayoutsPriceRow[] {
-    if (!departDate) return rows;
-    return rows.filter((row) =>
+    if (!departDate || !rows.length) return rows;
+
+    const exact = rows.filter((row) =>
       this.departureMatchesDate(row.departure_at, departDate),
     );
+    if (exact.length > 0) return exact.slice(0, limit);
+
+    // Fallback: closest available dates in the returned month feed.
+    return this.sortByProximityToDate(rows, departDate).slice(0, limit);
+  }
+
+  private sortByProximityToDate(
+    rows: TravelpayoutsPriceRow[],
+    targetYmd: string,
+  ): TravelpayoutsPriceRow[] {
+    const target = new Date(`${targetYmd}T12:00:00`).getTime();
+    return [...rows].sort((a, b) => {
+      const ta = new Date(a.departure_at ?? 0).getTime();
+      const tb = new Date(b.departure_at ?? 0).getTime();
+      return Math.abs(ta - target) - Math.abs(tb - target);
+    });
   }
 
   private departureMatchesDate(iso: string | undefined, targetYmd: string) {
     if (!iso) return false;
     const day = iso.length >= 10 ? iso.slice(0, 10) : iso;
     return day === targetYmd;
+  }
+
+  private formatMonthYearLabel(monthStart: string) {
+    const [year, month] = monthStart.split("-").map(Number);
+    const label = new Date(year, month - 1, 1).toLocaleDateString("en-US", {
+      month: "long",
+      year: "numeric",
+    });
+    return label;
   }
 
   private mapRowToCard(
@@ -129,10 +279,10 @@ export class FlightsService {
       row.destination_city_iata ??
       row.destination_airport_iata ??
       params.destination;
-    const originCity = cityNameForCode(originCode);
-    const destCity = cityNameForCode(destCode);
+    const originCity = originCode;
+    const destCity = destCode;
     const routeCode = `${originCode} > ${destCode}`;
-    const airlineName = airlineDisplayName(row.main_airline);
+    const airlineName = row.main_airline;
     const travelDate = this.formatCardDate(departureAt);
     const reserveUrl = this.buildReserveUrl(row.ticket_link);
 
@@ -162,9 +312,9 @@ export class FlightsService {
       label,
       badge,
       badgeVariant,
-      airlineName,
+      airlineName: "Test Airline Name",
       airlineIata: row.main_airline?.trim().toUpperCase(),
-      airlineLogoUrl: airlineLogoUrl(row.main_airline),
+      airlineLogoUrl: "https://images.kiwi.com/airlines/64/6E.png",
       routeCode,
       travelDate,
       departureTime: this.formatTime(depDate),

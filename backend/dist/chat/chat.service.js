@@ -8,91 +8,159 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 var ChatService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ChatService = void 0;
-const sdk_1 = __importDefault(require("@anthropic-ai/sdk"));
 const common_1 = require("@nestjs/common");
-const flight_intent_1 = require("../integrations/flights/flight-intent");
+const anthropic_service_1 = require("../ai/anthropic.service");
 const config_service_1 = require("../config/config.service");
+const flight_intent_1 = require("../integrations/flights/flight-intent");
 const flights_service_1 = require("../integrations/flights/flights.service");
+const chat_intent_1 = require("./chat-intent");
 let ChatService = ChatService_1 = class ChatService {
-    constructor(flightsService, config) {
+    constructor(anthropic, flightsService, config) {
+        this.anthropic = anthropic;
         this.flightsService = flightsService;
         this.config = config;
         this.logger = new common_1.Logger(ChatService_1.name);
-        const apiKey = this.config.keys.SECRET;
-        if (!apiKey) {
-            throw new common_1.InternalServerErrorException("Missing Anthropic API key in SECRET.");
-        }
-        this.client = new sdk_1.default({ apiKey });
     }
     async createReply(body) {
         const messages = this.normalizeMessages(body.messages);
         if (!messages.some((message) => message.role === "user")) {
             throw new common_1.BadRequestException("Send at least one user message to start the conversation.");
         }
-        const itineraryMode = this.isItineraryRequest(messages);
-        const checklistMode = !itineraryMode && this.isChecklistRequest(messages);
-        const flightMode = !itineraryMode && !checklistMode && (0, flight_intent_1.isFlightSearchRequest)(messages);
+        const classified = (0, chat_intent_1.classifyChatIntentType)(messages);
+        this.logger.log(`Chat intent: ${classified.intent} (${classified.confidence}) — ${classified.reason}`);
+        if (classified.intent === "out_of_scope") {
+            return {
+                reply: this.outOfScopeReply(),
+                intent: classified.intent,
+            };
+        }
         let flightsPayload = null;
-        if (flightMode) {
-            const params = (0, flight_intent_1.buildFlightSearchParams)(messages);
-            if (params) {
-                this.logger.log(`Flight search: ${params.origin} → ${params.destination}, month ${params.departMonth}${params.departDate ? `, day ${params.departDate}` : ""}`);
-                try {
-                    const result = await this.flightsService.search(params);
-                    flightsPayload = result.payload;
-                    if (!flightsPayload) {
-                        this.logger.warn(`Flight search returned no results for ${params.origin}→${params.destination}`);
-                    }
-                }
-                catch (error) {
-                    this.logger.warn(`Flight search failed: ${error instanceof Error ? error.message : error}`);
-                }
-            }
-            else {
-                this.logger.warn("Flight mode active but could not parse origin/destination from messages.");
-            }
+        if (classified.intent === "flight_search") {
+            flightsPayload = await this.runFlightSearch(messages);
         }
-        const maxTokens = this.resolveMaxTokens({
-            itineraryMode,
-            checklistMode,
-            flightMode,
-            hasFlights: Boolean(flightsPayload),
-        });
-        const response = await this.client.messages.create({
-            model: this.config.keys.ANTHROPIC_MODEL,
+        const maxTokens = this.resolveMaxTokens(classified.intent, Boolean(flightsPayload));
+        const temperature = this.resolveTemperature(classified.intent);
+        const { text: reply } = await this.anthropic.complete({
             max_tokens: maxTokens,
-            temperature: itineraryMode ? 0.65 : checklistMode ? 0.55 : 0.5,
-            system: itineraryMode
-                ? this.buildItineraryPrompt()
-                : checklistMode
-                    ? this.buildChecklistPrompt()
-                    : flightMode
-                        ? this.buildFlightPrompt(Boolean(flightsPayload))
-                        : this.buildBriefPrompt(),
-            messages: messages,
+            temperature,
+            system: this.buildSystemPrompt(classified.intent, Boolean(flightsPayload)),
+            messages,
         });
-        const reply = this.extractText(response.content);
-        if (!reply) {
-            this.logger.warn(`Empty model reply (stop=${response.stop_reason}, model=${this.config.keys.ANTHROPIC_MODEL})`);
-        }
         const finalReply = reply ||
-            (flightMode && flightsPayload
-                ? `Here are live flight options for your route.`
-                : flightMode
-                    ? `I couldn’t find live prices for that month yet — try a specific month (e.g. June 2026) or airport codes like JAI to DEL.`
-                    : this.fallbackReply(messages));
-        const responseBody = { reply: finalReply };
+            this.fallbackReply(classified.intent, messages, Boolean(flightsPayload));
+        const responseBody = {
+            reply: finalReply,
+            intent: classified.intent,
+        };
         if (flightsPayload) {
-            flightsPayload.intro = finalReply;
+            flightsPayload.intro = flightsPayload.availabilityNote
+                ? `${finalReply}\n\n${flightsPayload.availabilityNote}`
+                : finalReply;
             responseBody.flights = flightsPayload;
         }
         return responseBody;
+    }
+    outOfScopeReply() {
+        return [
+            "I can only help with travel topics (flights, itineraries, hotels/stays, restaurants, tours, visas, safety, routes, and local tips).",
+            "",
+            "Tell me your destination + dates, or ask for flights like: DEL to DXB on 2026-06-10.",
+        ].join("\n");
+    }
+    async runFlightSearch(messages) {
+        console.log("Just before buildFlightSearchParams....------------> ", messages);
+        const params = await (0, flight_intent_1.buildFlightSearchParams)(messages, this.anthropic);
+        console.log("After buildFlightSearchParams....------------> ", params);
+        if (!params) {
+            this.logger.warn("Flight intent but missing origin/destination — ask user in reply.");
+            return null;
+        }
+        this.logger.log(`Executing flight API: ${params.origin} → ${params.destination}, month ${params.departMonth}${params.departDate ? `, day ${params.departDate}` : ""}`);
+        try {
+            const result = await this.flightsService.search(params);
+            if (!result.payload) {
+                this.logger.warn(`Flight API returned no results for ${params.origin}→${params.destination}`);
+            }
+            return result.payload;
+        }
+        catch (error) {
+            this.logger.warn(`Flight API failed: ${error instanceof Error ? error.message : error}`);
+            return null;
+        }
+    }
+    buildSystemPrompt(intent, hasLiveFlights) {
+        switch (intent) {
+            case "flight_search":
+                return this.buildFlightPrompt(hasLiveFlights);
+            case "hotel_search":
+                return this.buildHotelPrompt();
+            case "itinerary":
+                return this.buildItineraryPrompt();
+            case "restaurants_bars":
+                return this.buildRestaurantsBarsPrompt();
+            case "travel_safety":
+                return this.buildTravelSafetyPrompt();
+            case "checklist":
+                return this.buildChecklistPrompt();
+            case "place_info":
+                return this.buildPlaceInfoPrompt();
+            case "trip_plan":
+                return this.buildTripPlanPrompt();
+            case "estimated_routes_to_visit":
+                return this.buildEstimatedRoutesPrompt();
+            case "out_of_scope":
+                return this.buildBriefPrompt();
+            default:
+                return this.buildBriefPrompt();
+        }
+    }
+    resolveTemperature(intent) {
+        if (intent === "itinerary")
+            return 0.65;
+        if (intent === "checklist")
+            return 0.55;
+        return 0.5;
+    }
+    resolveMaxTokens(intent, hasFlights) {
+        const { keys } = this.config;
+        switch (intent) {
+            case "itinerary":
+                return this.anthropic.tokenLimit(keys.ANTHROPIC_MAX_TOKENS, 2048);
+            case "checklist":
+                return this.anthropic.tokenLimit(keys.ANTHROPIC_MAX_TOKENS_CHECKLIST, 900);
+            case "flight_search":
+                return hasFlights
+                    ? this.anthropic.tokenLimit(keys.ANTHROPIC_MAX_TOKENS_FLIGHT, 200)
+                    : this.anthropic.tokenLimit(keys.ANTHROPIC_MAX_TOKENS_BRIEF, 350);
+            case "hotel_search":
+            case "trip_plan":
+                return this.anthropic.tokenLimit(keys.ANTHROPIC_MAX_TOKENS, 1200);
+            case "place_info":
+                return this.anthropic.tokenLimit(keys.ANTHROPIC_MAX_TOKENS_BRIEF, 600);
+            default:
+                return this.anthropic.tokenLimit(keys.ANTHROPIC_MAX_TOKENS_BRIEF, 400);
+        }
+    }
+    fallbackReply(intent, messages, hasFlights) {
+        const lastUser = [...messages].reverse().find((m) => m.role === "user");
+        const text = lastUser?.content.toLowerCase() ?? "";
+        if (intent === "flight_search" && hasFlights) {
+            return "Here are live flight options for your route.";
+        }
+        if (intent === "flight_search") {
+            return "Share your origin and destination (e.g. JAI to DEL) and travel date — I’ll pull live flight prices for you.";
+        }
+        if (/^(hi|hello|hey|hola|namaste|howdy)\b/.test(text)) {
+            return [
+                "Hey! I’m your travel genius — flights, hotels, itineraries, and local tips.",
+                "",
+                "Tell me where you want to go, or ask for flights with route and date (e.g. Jaipur to Delhi, 5 July).",
+            ].join("\n");
+        }
+        return "Tell me your destination, dates, or what you need — flights, hotels, a full itinerary, or tips about a place.";
     }
     buildFlightPrompt(hasLiveResults) {
         const lines = [
@@ -100,56 +168,94 @@ let ChatService = ChatService_1 = class ChatService {
             "Sound human, warm, and simple. Never mention AI, models, or systems.",
             "Reply in the user's language and tone (Hindi/Hinglish if they write that way).",
             "",
-            "MODE: FLIGHT SEARCH",
+            "MODE: FLIGHT SEARCH / BOOKING",
+            "The platform runs a live flight search API from the user's message (origin, destination, date).",
         ];
         if (hasLiveResults) {
-            lines.push("Live flight options are shown in cards below your message — do NOT list flights, times, or prices in text.", "Write only 1–2 short sentences as an intro (e.g. that you found Economy options for their route).", "Keep under 40 words. No bullet lists or markdown headings.", "NEVER say you cannot access live flight data, Google Flights, or external booking sites.");
+            lines.push("Live flight options are shown in cards below your message — do NOT list flights, times, or prices in text.", "Write only 1–2 short sentences as an intro (e.g. Economy options for their route).", "Keep under 40 words. No bullet lists or markdown headings.", "NEVER say you cannot access live flight data or send users to Google Flights.");
         }
         else {
-            lines.push("Live price cards could not be loaded for this search. Ask for origin and destination as airport codes (e.g. DEL to BKK) and a month if needed.", "Do NOT claim you cannot access flight data in general. Do NOT send users to Google Flights or other sites.", "Keep under 60 words. No invented prices or flight times.");
+            lines.push("No live flight cards were returned by our flight search for the user's exact request (route/date).", "Do NOT say you lack live access. We DO have a flight search API; it just returned no rows for that exact date.", "Do NOT ask irrelevant follow-ups (e.g. different Bangkok airports) unless the user asked that explicitly.", "In 1–2 short sentences: say you couldn't find live fares for that exact date yet.", "Then ask ONE question: are they flexible by +/- a few days or another month?", "Keep under 60 words. No invented prices or flight times.");
         }
         return lines.join("\n");
     }
-    isItineraryRequest(messages) {
-        const lastUser = [...messages].reverse().find((m) => m.role === "user");
-        const text = lastUser?.content.toLowerCase() ?? "";
-        return (/itinerar|itenar|itinerary|trip plan|plan me|plan a\b|plan our|plan the/.test(text) ||
-            /road trip|day[- ]?by[- ]?day|full plan|custom plan/.test(text) ||
-            /(\d+)\s*days?\s+(trip|in|to|from)/.test(text) ||
-            (/jaipur|udaipur|from .+ to .+|to udaipur|to jaipur/.test(text) &&
-                /plan|trip|itinerar|itenar|going|group|friends/.test(text)));
+    buildHotelPrompt() {
+        return [
+            "You are My Travel Geek — a friendly personal travel genius.",
+            "Sound human, warm, and simple. Never mention AI, models, or systems.",
+            "Reply in the user's language and tone (Hindi/Hinglish if they write that way).",
+            "",
+            "MODE: HOTEL / STAY SEARCH",
+            "Help with where to stay, areas to book, and what to look for in hotels.",
+            "Live hotel price cards are not wired yet — do NOT invent nightly rates or availability.",
+            "Ask for: city/area, check-in & check-out dates, budget, and number of guests.",
+            "Give 3–5 practical tips or area suggestions in 80–120 words. Plain paragraphs or short bullets.",
+        ].join("\n");
     }
-    isChecklistRequest(messages) {
-        const lastUser = [...messages].reverse().find((m) => m.role === "user");
-        const text = lastUser?.content.toLowerCase() ?? "";
-        return (/packing|pack(ing)? tips|what to pack|pack kya|packign|packin/.test(text) ||
-            /list|checklist|items|things to carry|puri list|detail|detailed|full list/.test(text));
+    buildPlaceInfoPrompt() {
+        return [
+            "You are My Travel Geek — a friendly personal travel genius.",
+            "Sound human, warm, and simple. Never mention AI, models, or systems.",
+            "Reply in the user's language and tone (Hindi/Hinglish if they write that way).",
+            "",
+            "MODE: PLACE / DESTINATION INFORMATION",
+            "User wants info about a place — attractions, food, culture, weather, safety, etc.",
+            "NOT a full day-by-day itinerary unless they ask to plan the whole trip.",
+            "Use Markdown: short ### sections and bullets. 120–200 words.",
+            "Be specific with real place names when you know them. No invented prices.",
+        ].join("\n");
     }
-    resolveMaxTokens({ itineraryMode, checklistMode, flightMode, hasFlights, }) {
-        const { keys } = this.config;
-        if (itineraryMode)
-            return this.tokenLimit(keys.ANTHROPIC_MAX_TOKENS, 2048);
-        if (checklistMode)
-            return this.tokenLimit(keys.ANTHROPIC_MAX_TOKENS_CHECKLIST, 900);
-        if (flightMode && hasFlights)
-            return this.tokenLimit(keys.ANTHROPIC_MAX_TOKENS_FLIGHT, 200);
-        return this.tokenLimit(keys.ANTHROPIC_MAX_TOKENS_BRIEF, 400);
+    buildRestaurantsBarsPrompt() {
+        return [
+            "You are My Travel Geek — a friendly personal travel genius.",
+            "Sound human, warm, and simple. Never mention AI, models, or systems.",
+            "Reply in the user's language and tone (Hindi/Hinglish if they write that way).",
+            "",
+            "MODE: RESTAURANTS + BARS",
+            "Recommend places to eat/drink with a mix of price points and vibes.",
+            "Ask 1–2 quick questions only if needed (city/area, budget, dietary, vibe).",
+            "Use Markdown with short ### sections and bullets. 120–200 words.",
+            "Do NOT invent live availability. Do not claim you booked anything.",
+        ].join("\n");
     }
-    tokenLimit(raw, fallback) {
-        const n = Number(raw);
-        return Number.isFinite(n) && n > 0 ? n : fallback;
+    buildTravelSafetyPrompt() {
+        return [
+            "You are My Travel Geek — a friendly personal travel genius.",
+            "Sound human, calm, and practical. Never mention AI, models, or systems.",
+            "Reply in the user's language and tone (Hindi/Hinglish if they write that way).",
+            "",
+            "MODE: TRAVEL SAFETY",
+            "Give practical safety guidance: common scams, areas/times to be careful, transport safety, emergency basics.",
+            "Avoid medical or legal advice; suggest official sources when needed.",
+            "Use Markdown with ### headings and bullets. 140–220 words.",
+            "End with one clarifying question (destination + traveler type).",
+        ].join("\n");
     }
-    fallbackReply(messages) {
-        const lastUser = [...messages].reverse().find((m) => m.role === "user");
-        const text = lastUser?.content.toLowerCase() ?? "";
-        if (/^(hi|hello|hey|hola|namaste|howdy)\b/.test(text)) {
-            return [
-                "Hey! Great to meet you — I'm your travel genius for trips, flights, hotels, food, and local tips.",
-                "",
-                "Tell me where you want to go or tap Flights / Hotels above. What should we plan first?",
-            ].join("\n");
-        }
-        return "Hey! Tell me your destination, dates, or what you need — flights, hotels, or a full itinerary — and I’ll help.";
+    buildEstimatedRoutesPrompt() {
+        return [
+            "You are My Travel Geek — a friendly personal travel genius.",
+            "Sound human, warm, and clear. Never mention AI, models, or systems.",
+            "Reply in the user's language and tone (Hindi/Hinglish if they write that way).",
+            "",
+            "MODE: MOST DIRECT ROUTES / HOW TO GET THERE",
+            "Explain best route options (flight/train/bus/car) and approximate time ranges.",
+            "If you are unsure, give ranges and ask for start/end points and dates.",
+            "Use Markdown with ### headings and bullets. 120–200 words.",
+            "Do not invent exact timetables or prices.",
+        ].join("\n");
+    }
+    buildTripPlanPrompt() {
+        return [
+            "You are My Travel Geek — a friendly personal travel genius.",
+            "Sound human, warm, and simple. Never mention AI, models, or systems.",
+            "Reply in the user's language and tone (Hindi/Hinglish if they write that way).",
+            "",
+            "MODE: TRIP PLANNING (overview, not full day-by-day)",
+            "Give a helpful trip overview: best time to visit, how many days, main areas, transport between cities, vibe.",
+            "Do NOT write Day 1 / Day 2 unless they asked for a detailed itinerary.",
+            "150–250 words. Markdown with ### sections is OK.",
+            "If they need flights, mention they can ask with route + date for live prices in the app.",
+        ].join("\n");
     }
     buildBriefPrompt() {
         return [
@@ -157,25 +263,17 @@ let ChatService = ChatService_1 = class ChatService {
             "Sound human, warm, and simple. Never mention AI, models, or systems.",
             "Reply in the user's language and tone (Hindi/Hinglish if they write that way).",
             "",
-            "MODE: BRIEF (general questions, tips, what can I ask, comparisons, single recommendations).",
+            "MODE: GENERAL TRAVEL CHAT",
             "",
-            "GREETINGS (hi, hello, hey): Reply warmly in 2–3 short sentences. Invite them to ask about trips, flights, or hotels. Do not use a generic one-liner.",
+            "Help the user choose what they need:",
+            "- Flights: live prices when they give route + date (e.g. Jaipur to Delhi, 5 July)",
+            "- Hotels: areas and tips (live hotel search coming soon)",
+            "- Full itinerary: day-by-day plan",
+            "- Place info: things to do, food, culture in a destination",
             "",
-            "LENGTH:",
-            "- 40–70 words total. Never exceed 80 words.",
-            "- Each line max 12 words. No filler or repetition.",
-            "",
-            "STRUCTURE:",
-            "1) One-line intro.",
-            "2) Exactly 3–4 short paragraphs (blank line between). Use: I can help you… / You can ask for… / I can suggest…",
-            "3) One short closing question with two options.",
-            "",
-            "FORMAT: Plain paragraphs only. No headings, emoji, or bullet lists.",
-            "",
-            "CONTEXT: Use full chat. Personalize when known. Do not invent destinations on meta questions.",
-            "",
-            "FACTS: No invented prices, availability, or bookings.",
-            "FLIGHTS: If the user asks for flights, tell them to include route (e.g. DEL to BKK) — the app shows live options in cards when the search runs.",
+            "GREETINGS: Warm 2–3 sentences, invite them to pick flights, hotels, or planning.",
+            "OTHER: 40–80 words, plain paragraphs. One closing question.",
+            "Do not invent prices or bookings.",
         ].join("\n");
     }
     buildChecklistPrompt() {
@@ -191,28 +289,6 @@ let ChatService = ChatService_1 = class ChatService {
             "- Use simple Markdown with short section headings (###) and bullet lists (- ).",
             "- Keep items actionable, not generic. Avoid long paragraphs.",
             "- If trip length is known (e.g. 7 days) size the list accordingly.",
-            "- If climate is uncertain, give two variants (mild vs very cold) but keep it concise.",
-            "",
-            "PACKING LIST TEMPLATE (when asked for packing):",
-            "### Clothes (7 days)",
-            "- ...",
-            "### Footwear",
-            "- ...",
-            "### Essentials",
-            "- ...",
-            "### Toiletries",
-            "- ...",
-            "### Medicines",
-            "- ...",
-            "### Documents & money",
-            "- ...",
-            "### Tech",
-            "- ...",
-            "### Couple extras (nice-to-have)",
-            "- ...",
-            "",
-            "CLOSING:",
-            "- End with 1 short question to customize (e.g. 'Snow expect kar rahe ho ya normal thand?').",
             "",
             "FACTS: No invented prices, availability, or bookings.",
         ].join("\n");
@@ -223,45 +299,19 @@ let ChatService = ChatService_1 = class ChatService {
             "Sound enthusiastic, human, and helpful — like a friend who knows the route well. Never mention AI or systems.",
             "Reply in the user's language and tone (Hindi/Hinglish if they write that way).",
             "",
-            "MODE: DETAILED ITINERARY (user asked to plan a trip, route, or day-by-day schedule).",
-            "Do NOT use the brief 40–70 word format. Give a complete, practical plan they can follow.",
+            "MODE: DETAILED ITINERARY (day-by-day schedule)",
+            "Give a complete, practical plan they can follow.",
             "",
-            "OPENING (2–3 sentences):",
-            "- Echo their trip details (route, group size, dates/timing, vibe) and sound excited.",
-            "- One line introducing the plan (e.g. well-paced X-day itinerary balancing sightseeing and relaxation).",
+            "OPENING (2–3 sentences): Echo trip details and sound excited.",
             "",
-            "DAILY SECTIONS — for each day use Markdown:",
-            "### Day N: [Title] ([drive time or theme if relevant])",
+            "DAILY SECTIONS — for each day:",
+            "### Day N: [Title]",
+            "- Times, real place names, 📍 before notable stops, meals, downtime.",
             "",
-            "Under each day, 4–6 bullet points (- ) with:",
-            "- Specific times when helpful (e.g. Leave around 6 AM).",
-            "- Real place names: landmarks, restaurants, viewpoints.",
-            "- Prefix notable stops with 📍 before the place name (e.g. 📍 City Palace).",
-            "- Midway stops on drives, sunset spots, group-friendly meals.",
-            "- Mix culture, food, scenery, and downtime for groups.",
-            "",
-            "INFER TRIP LENGTH:",
-            "- Road trips (e.g. Jaipur → Udaipur): default 3–4 days unless they specify otherwise.",
-            "- City weekends: 2–3 days. Match their dates if given.",
-            "",
-            "CLOSING:",
-            "- One sentence on the overall vibe of the trip.",
-            "- One follow-up question (hotels, villas, restaurants, or tweaking the plan).",
-            "",
-            "QUALITY:",
-            "- Use the full conversation. Respect group size (e.g. 10 friends → group-friendly spots, villas).",
-            "- Be specific and actionable, not vague one-liners.",
-            "- Rough length: 250–450 words for a multi-day trip.",
-            "",
-            "FACTS: No invented live prices or booking confirmations. Real place names are fine.",
+            "CLOSING: One sentence on vibe + one follow-up question.",
+            "Rough length: 250–450 words for a multi-day trip.",
+            "FACTS: No invented live prices or booking confirmations.",
         ].join("\n");
-    }
-    extractText(content) {
-        return content
-            .filter((block) => block.type === "text" && typeof block.text === "string")
-            .map((block) => block.text ?? "")
-            .join("")
-            .trim();
     }
     normalizeMessages(messages) {
         if (!Array.isArray(messages)) {
@@ -286,7 +336,8 @@ let ChatService = ChatService_1 = class ChatService {
 exports.ChatService = ChatService;
 exports.ChatService = ChatService = ChatService_1 = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [flights_service_1.FlightsService,
+    __metadata("design:paramtypes", [anthropic_service_1.AnthropicService,
+        flights_service_1.FlightsService,
         config_service_1.ConfigService])
 ], ChatService);
 //# sourceMappingURL=chat.service.js.map

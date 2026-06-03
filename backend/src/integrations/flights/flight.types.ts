@@ -5,8 +5,14 @@ export type FlightSearchContext = {
   departMonth: string;
   /** When set, only flights departing on this calendar day (YYYY-MM-DD) are returned. */
   departDate?: string;
+  /** When set, use round-trip search with exact return date (YYYY-MM-DD). */
+  returnDate?: string;
   adults: number;
   noLowcost: boolean;
+  /** If true, request direct flights only (when supported by API). */
+  direct?: boolean;
+  /** Cabin class for Travelpayouts GraphQL (e.g. Y/C/F/W). */
+  tripClass?: string;
 };
 
 export type FlightSearchParams = FlightSearchContext & {
@@ -71,6 +77,8 @@ export type FlightOptionCard = {
 export type FlightsChatPayload = {
   routeTitle?: string;
   intro: string;
+  /** Shown when results are from a different month than requested. */
+  availabilityNote?: string;
   cabinClass: string;
   passengersLabel: string;
   originCode: string;
