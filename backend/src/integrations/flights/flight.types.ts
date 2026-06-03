@@ -1,8 +1,6 @@
 export type FlightSearchContext = {
   origin: string;
   destination: string;
-  /** First day of month for Travelpayouts `depart_months` (YYYY-MM-01). */
-  departMonth: string;
   /** When set, only flights departing on this calendar day (YYYY-MM-DD) are returned. */
   departDate?: string;
   /** When set, use round-trip search with exact return date (YYYY-MM-DD). */
@@ -49,7 +47,6 @@ export type FlightStopSegment = {
   connectionNote?: string;
   departureTime: string;
   departureCity: string;
-  arrivalTime: string;
   arrivalCity: string;
 };
 
@@ -64,8 +61,11 @@ export type FlightOptionCard = {
   routeCode: string;
   travelDate: string;
   departureTime: string;
-  departureCity: string;
+  /** Arrival time, derived from departure + duration. */
   arrivalTime: string;
+  /** Total trip duration, e.g. "1h 5m". Empty when unknown. */
+  durationLabel: string;
+  departureCity: string;
   arrivalCity: string;
   stopsLabel: string;
   metaLine: string;

@@ -6,7 +6,6 @@ export type FlightStopSegment = {
   connectionNote?: string;
   departureTime: string;
   departureCity: string;
-  arrivalTime: string;
   arrivalCity: string;
 };
 
@@ -22,8 +21,11 @@ export type FlightOptionCard = {
   routeCode: string;
   travelDate: string;
   departureTime: string;
-  departureCity: string;
+  /** Arrival time, derived from departure + duration. */
   arrivalTime: string;
+  /** Total trip duration, e.g. "1h 5m". Empty when unknown. */
+  durationLabel: string;
+  departureCity: string;
   arrivalCity: string;
   stopsLabel: string;
   metaLine: string;

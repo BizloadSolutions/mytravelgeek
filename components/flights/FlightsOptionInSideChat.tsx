@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { fetchFlightPage } from "@/lib/flights-api";
+import { getAirportCity } from "@/lib/airports";
 import type {
   FlightOptionCard,
   FlightsChatPayload,
@@ -11,9 +12,20 @@ import type {
 
 type Props = Partial<FlightsChatPayload>;
 
-function FlightPathGraphic({ stopsLabel }: { stopsLabel: string }) {
+function FlightPathGraphic({
+  stopsLabel,
+  durationLabel,
+}: {
+  stopsLabel: string;
+  durationLabel?: string;
+}) {
   return (
-    <div className="relative flex min-w-0 flex-1 flex-col items-center justify-center gap-1.5">
+    <div className="relative flex min-w-0 flex-1 flex-col items-center justify-center gap-1">
+      {durationLabel ? (
+        <span className="text-[11px] font-medium text-zinc-500">
+          {durationLabel}
+        </span>
+      ) : null}
       <svg
         width="70"
         height="12"
@@ -105,7 +117,7 @@ function StopsPanel({ stops }: { stops: FlightStopSegment[] }) {
                 </span>
               </div>
               <div className="flex items-center justify-between gap-2 self-stretch">
-                <span className="text-sm font-medium">{stop.arrivalTime}</span>
+                <span className="text-sm font-medium">{"00:00"}</span>
                 <span className="text-xs font-normal text-zinc-600">
                   {stop.arrivalCity}
                 </span>
@@ -168,7 +180,10 @@ function FlightCard({ flight }: { flight: FlightOptionCard }) {
                 {flight.departureCity}
               </span>
             </div>
-            <FlightPathGraphic stopsLabel={flight.stopsLabel} />
+            <FlightPathGraphic
+              stopsLabel={flight.stopsLabel}
+              durationLabel={flight.durationLabel}
+            />
             <div className="flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-center">
               <span className="text-sm font-extrabold">
                 {flight.arrivalTime}
@@ -224,9 +239,22 @@ function FlightCard({ flight }: { flight: FlightOptionCard }) {
   );
 }
 
+const DEFAULT_PAYLOAD: FlightsChatPayload = {
+  routeTitle: "Flights",
+  intro: "Loading flight options...",
+  cabinClass: "Economy",
+  passengersLabel: "1 adult",
+  originCode: "---",
+  destinationCode: "---",
+  travelDateLabel: "TBD",
+  flights: [],
+};
+
 const FlightsOptionInSideChat = (props: Props) => {
+  // Use destination city from airport data if available
+  const destinationCity = props.destinationCode ? getAirportCity(props.destinationCode) : "Destination";
   const intro = props.intro?.trim() || DEFAULT_PAYLOAD.intro;
-  const routeTitle = props.routeTitle ?? DEFAULT_PAYLOAD.routeTitle;
+  const routeTitle = props.routeTitle ?? `${destinationCity} Flights`;
 
   const [flights, setFlights] = useState<FlightOptionCard[]>(
     () => props.flights ?? DEFAULT_PAYLOAD.flights,

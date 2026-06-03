@@ -45,7 +45,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         error:
-          "Travel Geek backend is unreachable. Run: cd backend && npm run dev",
+          "Travel Geek backend is unreachable. Please ensure it is running and accessible.",
       },
       { status: 503 },
     );

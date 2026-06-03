@@ -12,6 +12,7 @@ const PRICES_ONE_WAY_QUERY = `
       params: $params
       paging: { limit: $limit, offset: $offset }
       sorting: VALUE_ASC
+      grouping: NONE
       currency: "${FLIGHT_SEARCH_CURRENCY}"
     ) {
       departure_at
@@ -79,9 +80,14 @@ export class TravelpayoutsFlightsApi {
       return [];
     }
 
+    if (!params.departDate) {
+      this.logger.warn("One-way flight search requires a departure date.");
+      return [];
+    }
+
     try {
       this.logger.debug(
-        `Travelpayouts GraphQL (${FLIGHT_SEARCH_CURRENCY}): ${params.origin}→${params.destination}, month=${params.departMonth}`,
+        `Travelpayouts GraphQL (${FLIGHT_SEARCH_CURRENCY}): ${params.origin}→${params.destination}, depart=${params.departDate}`,
       );
 
       const data = await this.graphql.post<PricesOneWayResponse>(
@@ -95,7 +101,7 @@ export class TravelpayoutsFlightsApi {
             params: {
               origin: params.origin,
               destination: params.destination,
-              depart_months: params.departMonth,
+              depart_dates: params.departDate,
               no_lowcost: params.noLowcost,
               ...(params.tripClass ? { trip_class: params.tripClass } : {}),
               ...(typeof params.direct === "boolean"
