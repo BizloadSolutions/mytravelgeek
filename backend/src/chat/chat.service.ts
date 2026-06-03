@@ -46,7 +46,13 @@ export class ChatService {
     let flightsPayload: FlightsChatPayload | null = null;
 
     if (classified.intent === "flight_search") {
+      this.logger.debug("Attempting flight search...");
       flightsPayload = await this.runFlightSearch(messages);
+      if (flightsPayload) {
+        this.logger.log(`✅ Flights found: ${flightsPayload.flights?.length || 0} options`);
+      } else {
+        this.logger.warn("⚠️ No flights payload returned from search");
+      }
     }
 
     const maxTokens = this.resolveMaxTokens(
@@ -79,6 +85,9 @@ export class ChatService {
         ? `${finalReply}\n\n${flightsPayload.availabilityNote}`
         : finalReply;
       responseBody.flights = flightsPayload;
+      this.logger.log(`📤 Response includes ${flightsPayload.flights?.length || 0} flights`);
+    } else {
+      this.logger.debug(`📤 Response has no flights (intent: ${classified.intent})`);
     }
 
     return responseBody;
@@ -95,36 +104,44 @@ export class ChatService {
   private async runFlightSearch(
     messages: ChatMessage[],
   ): Promise<FlightsChatPayload | null> {
-    console.log(
-      "Just before buildFlightSearchParams....------------> ",
-      messages,
-    );
+    this.logger.debug(`🔍 Building flight search params from ${messages.length} messages`);
 
     const params = await buildFlightSearchParams(messages, this.anthropic);
-    console.log("After buildFlightSearchParams....------------> ", params);
+    
+    if (!params) {
+      this.logger.warn("⚠️ No flight params extracted");
+    } else {
+      this.logger.debug(`✓ Params extracted: ${params.origin} → ${params.destination}`);
+    }
 
     if (!params) {
       this.logger.warn(
-        "Flight intent but missing origin/destination — ask user in reply.",
+        "🚫 Flight intent detected but missing origin/destination — asking user for clarification",
       );
       return null;
     }
 
     this.logger.log(
-      `Executing flight API: ${params.origin} → ${params.destination}, month ${params.departMonth}${params.departDate ? `, day ${params.departDate}` : ""}`,
+      `🛫 Executing flight API: ${params.origin} → ${params.destination}, day ${params.departDate}`,
     );
 
     try {
       const result = await this.flightsService.search(params);
-      if (!result.payload) {
+      if (!result.payload || !result.payload.flights?.length) {
         this.logger.warn(
-          `Flight API returned no results for ${params.origin}→${params.destination}`,
+          `⚠️ Flight API returned no results for ${params.origin}→${params.destination} on ${params.departDate || "any day"}`,
+        );
+        this.logger.debug("API Response:", JSON.stringify(result.payload));
+      } else {
+        this.logger.log(
+          `✅ Flight API success: ${result.payload.flights.length} flights found`,
         );
       }
       return result.payload;
     } catch (error) {
-      this.logger.warn(
-        `Flight API failed: ${error instanceof Error ? error.message : error}`,
+      this.logger.error(
+        `❌ Flight API failed: ${error instanceof Error ? error.message : error}`,
+        error instanceof Error ? error.stack : "",
       );
       return null;
     }
@@ -217,28 +234,31 @@ export class ChatService {
   private buildFlightPrompt(hasLiveResults: boolean) {
     const lines = [
       "You are My Travel Geek — a friendly personal travel genius.",
-      "Sound human, warm, and simple. Never mention AI, models, or systems.",
-      "Reply in the user's language and tone (Hindi/Hinglish if they write that way).",
+      "Sound human, warm, simple, and PROFESSIONAL. Never mention AI, models, or systems.",
+      "Always respond in English. Only use another language if the user explicitly asks",
+      "Never use slang, casual language (like 'abe', 'haha'), or abusive words. Always be respectful and courteous.",
       "",
       "MODE: FLIGHT SEARCH / BOOKING",
       "The platform runs a live flight search API from the user's message (origin, destination, date).",
+      `FLAG: hasLiveResults = ${hasLiveResults}. This MUST guide your response.`,
     ];
 
     if (hasLiveResults) {
       lines.push(
-        "Live flight options are shown in cards below your message — do NOT list flights, times, or prices in text.",
-        "Write only 1–2 short sentences as an intro (e.g. Economy options for their route).",
+        "✅ LIVE FLIGHTS AVAILABLE — Real flight cards are shown below.",
+        "Do NOT list flights/times/prices in text — cards have all details.",
+        "Write ONLY 1–2 sentences welcoming the options (e.g. 'Great Economy choices for your route').",
+        "NEVER mention 'cards below' or ask to check—just present the flights.",
         "Keep under 40 words. No bullet lists or markdown headings.",
-        "NEVER say you cannot access live flight data or send users to Google Flights.",
       );
     } else {
       lines.push(
-        "No live flight cards were returned by our flight search for the user's exact request (route/date).",
-        "Do NOT say you lack live access. We DO have a flight search API; it just returned no rows for that exact date.",
-        "Do NOT ask irrelevant follow-ups (e.g. different Bangkok airports) unless the user asked that explicitly.",
-        "In 1–2 short sentences: say you couldn't find live fares for that exact date yet.",
-        "Then ask ONE question: are they flexible by +/- a few days or another month?",
-        "Keep under 60 words. No invented prices or flight times.",
+        "❌ NO LIVE FLIGHTS FOUND — Do NOT mention cards, options, or suggest checking anything below.",
+        "CRITICAL: NEVER suggest flights exist when NO RESULTS were returned.",
+        "In 1–2 sentences: politely say no fares are available for that exact date.",
+        "Then ask ONE follow-up: Are you flexible by ±a few days or another month?",
+        "Do NOT invent flights, prices, or availability. Do NOT mention APIs or systems.",
+        "Keep under 60 words.",
       );
     }
 
@@ -248,8 +268,9 @@ export class ChatService {
   private buildHotelPrompt() {
     return [
       "You are My Travel Geek — a friendly personal travel genius.",
-      "Sound human, warm, and simple. Never mention AI, models, or systems.",
-      "Reply in the user's language and tone (Hindi/Hinglish if they write that way).",
+      "Sound human, warm, simple, and PROFESSIONAL. Never mention AI, models, or systems.",
+      "Always respond in English. Only use another language if the user explicitly asks",
+      "Never use slang, casual language, or abusive words. Always be respectful and courteous.",
       "",
       "MODE: HOTEL / STAY SEARCH",
       "Help with where to stay, areas to book, and what to look for in hotels.",
@@ -262,8 +283,9 @@ export class ChatService {
   private buildPlaceInfoPrompt() {
     return [
       "You are My Travel Geek — a friendly personal travel genius.",
-      "Sound human, warm, and simple. Never mention AI, models, or systems.",
-      "Reply in the user's language and tone (Hindi/Hinglish if they write that way).",
+      "Sound human, warm, simple, and PROFESSIONAL. Never mention AI, models, or systems.",
+      "Always respond in English. Only use another language if the user explicitly asks",
+      "Never use slang, casual language, or abusive words. Always be respectful and courteous.",
       "",
       "MODE: PLACE / DESTINATION INFORMATION",
       "User wants info about a place — attractions, food, culture, weather, safety, etc.",
@@ -276,8 +298,9 @@ export class ChatService {
   private buildRestaurantsBarsPrompt() {
     return [
       "You are My Travel Geek — a friendly personal travel genius.",
-      "Sound human, warm, and simple. Never mention AI, models, or systems.",
-      "Reply in the user's language and tone (Hindi/Hinglish if they write that way).",
+      "Sound human, warm, simple, and PROFESSIONAL. Never mention AI, models, or systems.",
+      "Always respond in English. Only use another language if the user explicitly asks",
+      "Never use slang, casual language, or abusive words. Always be respectful and courteous.",
       "",
       "MODE: RESTAURANTS + BARS",
       "Recommend places to eat/drink with a mix of price points and vibes.",
@@ -290,8 +313,9 @@ export class ChatService {
   private buildTravelSafetyPrompt() {
     return [
       "You are My Travel Geek — a friendly personal travel genius.",
-      "Sound human, calm, and practical. Never mention AI, models, or systems.",
-      "Reply in the user's language and tone (Hindi/Hinglish if they write that way).",
+      "Sound human, calm, practical, and PROFESSIONAL. Never mention AI, models, or systems.",
+      "Always respond in English. Only use another language if the user explicitly asks",
+      "Never use slang, casual language, or abusive words. Always be respectful and courteous.",
       "",
       "MODE: TRAVEL SAFETY",
       "Give practical safety guidance: common scams, areas/times to be careful, transport safety, emergency basics.",
@@ -304,9 +328,9 @@ export class ChatService {
   private buildEstimatedRoutesPrompt() {
     return [
       "You are My Travel Geek — a friendly personal travel genius.",
-      "Sound human, warm, and clear. Never mention AI, models, or systems.",
-      "Reply in the user's language and tone (Hindi/Hinglish if they write that way).",
-      "",
+      "Sound human, warm, clear, and PROFESSIONAL. Never mention AI, models, or systems.",
+      "Always respond in English. Only use another language if the user explicitly asks",
+      "Never use slang, casual language, or abusive words. Always be respectful and courteous.",
       "MODE: MOST DIRECT ROUTES / HOW TO GET THERE",
       "Explain best route options (flight/train/bus/car) and approximate time ranges.",
       "If you are unsure, give ranges and ask for start/end points and dates.",
@@ -318,8 +342,9 @@ export class ChatService {
   private buildTripPlanPrompt() {
     return [
       "You are My Travel Geek — a friendly personal travel genius.",
-      "Sound human, warm, and simple. Never mention AI, models, or systems.",
-      "Reply in the user's language and tone (Hindi/Hinglish if they write that way).",
+      "Sound human, warm, simple, and PROFESSIONAL. Never mention AI, models, or systems.",
+      "Always respond in English. Only use another language if the user explicitly asks",
+      "Never use slang, casual language, or abusive words. Always be respectful and courteous.",
       "",
       "MODE: TRIP PLANNING (overview, not full day-by-day)",
       "Give a helpful trip overview: best time to visit, how many days, main areas, transport between cities, vibe.",
@@ -332,8 +357,9 @@ export class ChatService {
   private buildBriefPrompt() {
     return [
       "You are My Travel Geek — a friendly personal travel genius.",
-      "Sound human, warm, and simple. Never mention AI, models, or systems.",
-      "Reply in the user's language and tone (Hindi/Hinglish if they write that way).",
+      "Sound human, warm, simple, and PROFESSIONAL. Never mention AI, models, or systems.",
+      "Always respond in English. Only use another language if the user explicitly asks",
+      "Never use slang, casual language, or abusive words. Always be respectful and courteous.",
       "",
       "MODE: GENERAL TRAVEL CHAT",
       "",
@@ -352,8 +378,9 @@ export class ChatService {
   private buildChecklistPrompt() {
     return [
       "You are My Travel Geek — a friendly personal travel genius.",
-      "Sound human, warm, and practical. Never mention AI, models, or systems.",
-      "Reply in the user's language and tone (Hindi/Hinglish if they write that way).",
+      "Sound human, warm, practical, and PROFESSIONAL. Never mention AI, models, or systems.",
+      "Always respond in English. Only use another language if the user explicitly asks",
+      "Never use slang, casual language, or abusive words. Always be respectful and courteous.",
       "",
       "MODE: DETAILED CHECKLIST (packing lists, step-by-step lists, 'puri list', 'detailed').",
       "Do NOT use the brief 40–70 word format. Provide a complete, organized checklist the user can follow.",
@@ -370,8 +397,9 @@ export class ChatService {
   private buildItineraryPrompt() {
     return [
       "You are My Travel Geek — a friendly personal travel genius.",
-      "Sound enthusiastic, human, and helpful — like a friend who knows the route well. Never mention AI or systems.",
-      "Reply in the user's language and tone (Hindi/Hinglish if they write that way).",
+      "Sound enthusiastic, human, helpful, and PROFESSIONAL — like a friend who knows the route well. Never mention AI or systems.",
+      "Always respond in English. Only use another language if the user explicitly asks",
+      "Never use slang, casual language, or abusive words. Always be respectful and courteous.",
       "",
       "MODE: DETAILED ITINERARY (day-by-day schedule)",
       "Give a complete, practical plan they can follow.",

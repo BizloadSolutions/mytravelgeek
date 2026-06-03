@@ -55,6 +55,13 @@ function lastUserText(messages: ChatMessage[]) {
   return [...messages].reverse().find((m) => m.role === "user")?.content ?? "";
 }
 
+/** Returns tomorrow's date as YYYY-MM-DD, used as the default departure date. */
+function getTomorrowYmd(): string {
+  const date = new Date();
+  date.setDate(date.getDate() + 1);
+  return date.toISOString().slice(0, 10);
+}
+
 function cabinToTripClass(cabin: ExtractedFlightData["cabinClass"]) {
   switch (cabin) {
     case "business":
@@ -100,17 +107,17 @@ export async function buildFlightSearchParams(
   console.log("After extractFlightSearchParams....------------> ", parsed);
 
   if (!parsed?.origin || !parsed.destination) return null;
-  if (!parsed.departureDate) return null;
 
-  const departMonth = `${parsed.departureDate.slice(0, 7)}-01`;
+  // When the user doesn't specify a departure date, default to tomorrow.
+  const departDate = parsed.departureDate ?? getTomorrowYmd();
+
   const direct = parsed.maxStops === 0 ? true : undefined;
   const noLowcost = false;
 
   return {
     origin: parsed.origin,
     destination: parsed.destination,
-    departMonth,
-    departDate: parsed.departureDate,
+    departDate,
     returnDate:
       parsed.tripType === "roundtrip"
         ? (parsed.returnDate ?? undefined)
