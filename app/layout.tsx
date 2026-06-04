@@ -90,6 +90,7 @@ export default function RootLayout({
         <script src="/js/function.js" />
         <script src="/js/modal.js" />
         <script src="/js/custom.js" />
+        <script src="/js/travelpayout.js" />
       </body>
     </html>
   );
