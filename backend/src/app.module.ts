@@ -1,14 +1,9 @@
 import { Module } from "@nestjs/common";
-import { ConfigModule } from "@nestjs/config";
+import { AnthropicModule } from "./ai/anthropic.module";
+import { AppConfigModule } from "./config/config.module";
 import { ChatModule } from "./chat/chat.module";
 
 @Module({
-  imports: [
-    ConfigModule.forRoot({
-      isGlobal: true,
-      envFilePath: ["../.env", ".env"],
-    }),
-    ChatModule,
-  ],
+  imports: [AppConfigModule, AnthropicModule, ChatModule],
 })
 export class AppModule {}

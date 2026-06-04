@@ -1,6 +1,7 @@
 import "reflect-metadata";
 import { NestFactory } from "@nestjs/core";
 import { AppModule } from "./app.module";
+import { ConfigService } from "./config/config.service";
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -10,9 +11,7 @@ async function bootstrap() {
   });
   app.setGlobalPrefix("api");
 
-  const port = Number(process.env.NEST_PORT ?? process.env.PORT ?? 3001);
-  const host = process.env.NEST_HOST ?? "127.0.0.1";
-  await app.listen(port, host);
+  await app.listen(ConfigService.keys.PORT);
 }
 
 void bootstrap();
