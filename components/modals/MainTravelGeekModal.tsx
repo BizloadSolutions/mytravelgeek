@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import ChatModal from "./ChatModal";
 import FavoritesModal from "./FavoritesModal";
 import MapViewModal from "./MapVIewModal";
@@ -26,17 +26,13 @@ interface CustomItineraryModalProps {
   initialQuery?: string;
 }
 
-const MODAL_TRANSITION_MS = 400;
-
 export default function MainTravelGeekModal({
   open,
   onClose,
   onOpen,
   initialQuery = "",
 }: CustomItineraryModalProps) {
-  const [isClosing, setIsClosing] = useState(false);
   const dialogRef = useRef<HTMLDialogElement>(null);
-  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const finishClose = () => {
     const dialog = dialogRef.current;
@@ -50,36 +46,24 @@ export default function MainTravelGeekModal({
       onClose();
       return;
     }
-    if (isClosing) return;
-    setIsClosing(true);
-    if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
-    closeTimerRef.current = setTimeout(finishClose, MODAL_TRANSITION_MS);
+    finishClose();
   };
 
   useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog) return;
     if (open) {
-      setIsClosing(false);
       if (!dialog.open) dialog.showModal();
       return;
     }
-    if (dialog.open) closeWithAnimation();
+    if (dialog.open) finishClose();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
-
-  useEffect(() => {
-    return () => {
-      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
-    };
-  }, []);
 
   useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog) return;
     const handleClose = () => {
-      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
-      setIsClosing(false);
       onClose();
     };
     dialog.addEventListener("close", handleClose);
@@ -134,7 +118,7 @@ export default function MainTravelGeekModal({
       <dialog
         ref={dialogRef}
         id="custom-itinerary-modal"
-        className={`modal${isClosing ? " is-closing" : ""}`}
+        className="modal"
       >
         <div className="modal-box">
           <MainModalHeader closeWithAnimation={closeWithAnimation} />
