@@ -9,9 +9,11 @@ import {
   type KeyboardEvent,
 } from "react";
 import AssistantMarkdown from "@/components/chat/AssistantMarkdown";
+import FlightsOptionInSideChat from "@/components/flights/FlightsOptionInSideChat";
 import ChatHelp from "../ChatHelp";
 import { sendChatMessage } from "@/lib/chat-api";
 import type { ChatMessage } from "@/lib/chat-types";
+import { fetchFlightPage } from "@/lib/flights-api";
 import { isShowMapVIew } from "../utils/helpers";
 
 const QUICK_PROMPTS = [
@@ -19,9 +21,25 @@ const QUICK_PROMPTS = [
     label: "Custom Itinerary",
     text: "Plan a 3-day custom itinerary with morning, afternoon, and evening activities.",
   },
-  { label: "Flights", text: "Help me compare flight options for my trip." },
+  {
+    label: "Flights",
+    text: "Find flights from Delhi to Dubai in June 2026 for 2 adults.",
+  },
   { label: "Hotels", text: "Suggest hotels for my upcoming trip." },
 ] as const;
+
+const LOAD_MORE_FLIGHTS_RE =
+  /\b(show|see|load|get|find)\s+(me\s+)?(more|another|additional)\s+(flight|flights|options)\b/i;
+
+function findLastFlightMessageIndex(messages: ChatMessage[]) {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const message = messages[i];
+    if (message.role === "assistant" && message.flights?.pagination?.hasMore) {
+      return i;
+    }
+  }
+  return -1;
+}
 
 function TypingIndicator() {
   return (
@@ -88,16 +106,56 @@ export default function ChatModal({ open, initialQuery = "" }: ChatModalProps) {
 
       setInput("");
 
+      const prior = messagesRef.current;
       const userMessage: ChatMessage = { role: "user", content: text };
-      const conversation = [...messagesRef.current, userMessage];
+      const conversation = [...prior, userMessage];
       syncMessages(conversation);
 
       isLoadingRef.current = true;
       setIsLoading(true);
 
       try {
-        const reply = await sendChatMessage(conversation);
-        syncMessages([...conversation, { role: "assistant", content: reply }]);
+        if (LOAD_MORE_FLIGHTS_RE.test(text)) {
+          const flightIndex = findLastFlightMessageIndex(prior);
+          if (flightIndex >= 0 && prior[flightIndex].flights?.pagination) {
+            const existing = prior[flightIndex].flights!;
+            const pag = existing.pagination!;
+            const result = await fetchFlightPage(pag.search, {
+              limit: pag.limit,
+              offset: pag.offset + pag.limit,
+            });
+
+            const next = [...conversation];
+            if (result.payload?.flights.length) {
+              next[flightIndex] = {
+                role: "assistant",
+                content: `Here are ${result.payload.flights.length} more flight options.`,
+                flights: {
+                  ...existing,
+                  flights: [...existing.flights, ...result.payload.flights],
+                  pagination: result.payload.pagination,
+                },
+              };
+            } else {
+              next.push({
+                role: "assistant",
+                content: "No more flights are available for this search.",
+              });
+            }
+            syncMessages(next);
+            return;
+          }
+        }
+
+        const { reply, flights } = await sendChatMessage(conversation);
+        syncMessages([
+          ...conversation,
+          {
+            role: "assistant",
+            content: reply,
+            ...(flights ? { flights } : {}),
+          },
+        ]);
       } catch (error) {
         const message =
           error instanceof Error
@@ -181,6 +239,11 @@ export default function ChatModal({ open, initialQuery = "" }: ChatModalProps) {
             <UserMessage
               key={`user-${index}-${message.content.slice(0, 24)}`}
               content={message.content}
+            />
+          ) : message.flights ? (
+            <FlightsOptionInSideChat
+              key={`assistant-flights-${index}`}
+              {...message.flights}
             />
           ) : (
             <AssistantMessage

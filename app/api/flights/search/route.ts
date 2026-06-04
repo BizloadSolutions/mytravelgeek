@@ -3,9 +3,7 @@ import { NextResponse } from "next/server";
 const BACKEND_URL = process.env.BACKEND_URL ?? "http://127.0.0.1:3002";
 
 function toErrorMessage(data: unknown): string {
-  if (!data || typeof data !== "object") {
-    return "Something went wrong.";
-  }
+  if (!data || typeof data !== "object") return "Something went wrong.";
   const record = data as { error?: string; message?: string | string[] };
   if (typeof record.error === "string" && record.error.trim()) {
     return record.error;
@@ -25,7 +23,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const response = await fetch(`${BACKEND_URL}/api/chat`, {
+    const response = await fetch(`${BACKEND_URL}/api/flights/search`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
@@ -43,10 +41,7 @@ export async function POST(request: Request) {
     return NextResponse.json(data, { status: response.status });
   } catch {
     return NextResponse.json(
-      {
-        error:
-          "Travel Geek backend is unreachable. Please ensure it is running and accessible.",
-      },
+      { error: "Travel Geek backend is unreachable." },
       { status: 503 },
     );
   }

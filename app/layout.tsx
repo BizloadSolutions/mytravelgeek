@@ -1,11 +1,34 @@
 import type { Metadata } from "next";
-import Script from "next/script";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import SuppressExtensionHydrationWarning from "@/components/SuppressExtensionHydrationWarning";
 
+/** Preload chain used by custom.css @import — files themselves are unchanged. */
+const PUBLIC_CSS_PRELOAD = [
+  "/css/developer.css",
+  "/css/color.css",
+  "/css/fonts.css",
+  "/css/style.css",
+] as const;
+
 export const metadata: Metadata = {
-  title: "AI for Travel and Lifestyle Guide",
+  title: "My Travel Geek AI",
+  description: "Your Personal Travel Expert, Anytime",
+  icons: {
+    icon: [
+      {
+        url: "/favicon.svg",
+        type: "image/svg+xml",
+        media: "(prefers-color-scheme: light)",
+      },
+      {
+        url: "/favicon-light.svg",
+        type: "image/svg+xml",
+        media: "(prefers-color-scheme: dark)",
+      },
+    ],
+    shortcut: "/favicon.svg",
+  },
 };
 
 export default function RootLayout({
@@ -16,7 +39,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head suppressHydrationWarning>
-        <script src="/js/strip-extension-attrs.js" />
+        <script defer src="/js/strip-extension-attrs.js" />
         <meta name="msapplication-TileColor" content="#ffffff" />
         <meta
           name="msapplication-TileImage"
@@ -24,27 +47,28 @@ export default function RootLayout({
         />
         <meta name="theme-color" content="#ffffff" />
 
-        {/* Swiper CSS */}
+        <link rel="preconnect" href="https://cdn.jsdelivr.net" crossOrigin="" />
+        <link rel="dns-prefetch" href="https://cdn.jsdelivr.net" />
+
+        {PUBLIC_CSS_PRELOAD.map((href) => (
+          <link key={`preload-${href}`} rel="preload" href={href} as="style" />
+        ))}
+
+        <link rel="stylesheet" href="/css/custom.css" />
+        <link rel="stylesheet" href="/css/responsive.css" />
+
         <link
           rel="stylesheet"
           href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css"
         />
-
-        {/* Tabler Icons */}
         <link
           rel="stylesheet"
           href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css"
         />
-
-        {/* Flag Icons */}
         <link
           rel="stylesheet"
           href="https://cdn.jsdelivr.net/gh/lipis/flag-icons@7.2.3/css/flag-icons.min.css"
         />
-
-        {/* Custom CSS */}
-        <link rel="stylesheet" href="/css/custom.css" />
-        <link rel="stylesheet" href="/css/responsive.css" />
       </head>
 
       <body suppressHydrationWarning>
@@ -54,44 +78,18 @@ export default function RootLayout({
           suppressHydrationWarning
         >
           <Header />
-
           {children}
-
           <Footer />
         </div>
 
-        {/* Tailwind */}
-        <Script
-          src="https://cdn.tailwindcss.com"
-          strategy="beforeInteractive"
-        />
-
-        <Script
-          src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"
-          strategy="beforeInteractive"
-        />
-
-        {/* jQuery */}
-        <Script
-          src="https://code.jquery.com/jquery-3.7.1.min.js"
-          strategy="beforeInteractive"
-        />
-
-        {/* Swiper JS */}
-        <Script
-          src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"
-          strategy="afterInteractive"
-        />
-
-        {/* Custom JS Files */}
-        <Script src="/js/function.js" strategy="afterInteractive" />
-
-        <Script src="/js/modal.js" strategy="afterInteractive" />
-
-        <Script src="/js/custom.js" strategy="afterInteractive" />
-
-        <Script src="/js/travelpayout.js" strategy="afterInteractive" />
-        
+        {/* Native script tags (not next/script) — avoids nonce hydration mismatch */}
+        <script src="https://cdn.tailwindcss.com" />
+        <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4" />
+        <script src="https://code.jquery.com/jquery-3.7.1.min.js" />
+        <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js" />
+        <script src="/js/function.js" />
+        <script src="/js/modal.js" />
+        <script src="/js/custom.js" />
       </body>
     </html>
   );
