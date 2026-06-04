@@ -130,11 +130,6 @@ dialog.modal::backdrop {
   background: rgb(15 23 42 / 0.45);
   -webkit-backdrop-filter: blur(2px);
   backdrop-filter: blur(2px);
-  transition: opacity 0.4s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-dialog.modal.is-closing::backdrop {
-  opacity: 0;
 }
 
 dialog.modal:focus {
@@ -146,7 +141,7 @@ dialog.modal:focus-visible {
   outline-offset: 2px;
 }
 
-/* Inner panel — slides in from the right (reference: modal.php) */
+/* Inner panel — static open state (no slide animation) */
 dialog.modal .modal-box {
   position: relative;
   z-index: 1;
@@ -161,22 +156,7 @@ dialog.modal .modal-box {
   box-shadow:
     0 20px 25px -5px rgb(0 0 0 / 0.1),
     0 8px 10px -6px rgb(0 0 0 / 0.1);
-  transform: translate3d(100%, 0, 0);
-  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-dialog.modal[open] .modal-box {
-  transform: translate3d(0, 0, 0);
-}
-
-dialog.modal.is-closing .modal-box {
-  transform: translate3d(100%, 0, 0);
-}
-
-@starting-style {
-  dialog.modal[open] .modal-box {
-    transform: translate3d(100%, 0, 0);
-  }
+  transform: none;
 }
 
 /* Mobile nav drawer (< md) */
