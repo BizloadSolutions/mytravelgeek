@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import Image from "next/image";
 import MainTravelGeekModal from "@/components/modals/MainTravelGeekModal";
+import { trackHeroSearchSubmit } from "@/lib/analytics";
 
 
 const travelSuggestions = [
@@ -115,6 +116,7 @@ export default function HomePage() {
 
   const handleFormSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    trackHeroSearchSubmit(searchQuery);
     handleOpenModal(searchQuery);
   };
 
@@ -213,9 +215,8 @@ export default function HomePage() {
                 </div>
                 <button
                   type="submit"
-                  data-modal-open="custom-itinerary-modal"
                   className="inline-flex sm:size-[43px] size-[31px] shrink-0 items-center justify-center rounded-full bg-[#f26537] text-white transition-opacity hover:opacity-90"
-                  aria-label="Open custom itinerary"
+                  aria-label="Send travel question"
                   aria-haspopup="dialog"
                   aria-controls="custom-itinerary-modal"
                 >

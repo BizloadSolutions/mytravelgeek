@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import GoogleAnalytics from "@/components/GoogleAnalytics";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import SuppressExtensionHydrationWarning from "@/components/SuppressExtensionHydrationWarning";
@@ -72,6 +73,7 @@ export default function RootLayout({
       </head>
 
       <body suppressHydrationWarning>
+        <GoogleAnalytics />
         <SuppressExtensionHydrationWarning />
         <div
           className="site-wraper flex min-h-screen flex-col"
