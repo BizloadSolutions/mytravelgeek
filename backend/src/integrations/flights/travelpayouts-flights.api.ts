@@ -70,6 +70,26 @@ export class TravelpayoutsFlightsApi {
     private readonly config: ConfigService,
   ) {}
 
+  private async fetchOneWay(
+    token: string,
+    variables: {
+      limit: number;
+      offset: number;
+      params: Record<string, unknown>;
+    },
+  ): Promise<TravelpayoutsPriceRow[]> {
+    const data = await this.graphql.post<PricesOneWayResponse>(
+      this.config.keys.TRAVELPAYOUTS_GRAPHQL_URL,
+      token,
+      {
+        query: PRICES_ONE_WAY_QUERY,
+        variables,
+      },
+    );
+
+    return Array.isArray(data.prices_one_way) ? data.prices_one_way : [];
+  }
+
   async searchOneWay(
     params: FlightSearchParams,
   ): Promise<TravelpayoutsPriceRow[]> {
@@ -87,34 +107,43 @@ export class TravelpayoutsFlightsApi {
 
     try {
       this.logger.debug(
-        `Travelpayouts GraphQL (${FLIGHT_SEARCH_CURRENCY}): ${params.origin}→${params.destination}, depart=${params.departDate}`,
+        `Travelpayouts GraphQL (${FLIGHT_SEARCH_CURRENCY}): ${JSON.stringify(params)}`,
       );
 
-      const data = await this.graphql.post<PricesOneWayResponse>(
-        this.config.keys.TRAVELPAYOUTS_GRAPHQL_URL,
-        token,
-        {
-          query: PRICES_ONE_WAY_QUERY,
-          variables: {
-            limit: params.limit,
-            offset: params.offset,
-            params: {
-              origin: params.origin,
-              destination: params.destination,
-              depart_dates: params.departDate,
-              no_lowcost: params.noLowcost,
-              ...(params.tripClass ? { trip_class: params.tripClass } : {}),
-              ...(typeof params.direct === "boolean"
-                ? { direct: params.direct }
-                : {}),
-            },
-          },
+      const baseParams = {
+        origin: params.origin,
+        destination: params.destination,
+        no_lowcost: true,
+        ...(params.tripClass ? { trip_class: params.tripClass } : {}),
+        ...(typeof params.direct === "boolean" ? { direct: params.direct } : {}),
+      };
+
+      // 1) Try exact-date query (works in Playground for specific days).
+      let rows = await this.fetchOneWay(token, {
+        limit: params.limit,
+        offset: params.offset,
+        params: {
+          ...baseParams,
+          depart_dates: params.departDate,
         },
-      );
+      });
 
-      const rows = Array.isArray(data.prices_one_way)
-        ? data.prices_one_way
-        : [];
+      // 2) If empty, fall back to monthly calendar query (many routes only return data this way).
+      if (!rows.length) {
+        this.logger.debug(
+          `Travelpayouts returned 0 rows for depart_dates=${params.departDate}; retrying with depart_months.`,
+        );
+
+        rows = await this.fetchOneWay(token, {
+          limit: params.limit,
+          offset: params.offset,
+          params: {
+            ...baseParams,
+            depart_months: params.departDate,
+          },
+        });
+      }
+
       this.logger.log(`Travelpayouts returned ${rows.length} flight row(s).`);
       return rows;
     } catch (error) {
@@ -141,7 +170,7 @@ export class TravelpayoutsFlightsApi {
 
     try {
       this.logger.debug(
-        `Travelpayouts GraphQL (${FLIGHT_SEARCH_CURRENCY}): ${params.origin}→${params.destination}, depart=${params.departDate}, return=${params.returnDate}`,
+        `Travelpayouts GraphQL (${FLIGHT_SEARCH_CURRENCY}): ${JSON.stringify(params)}`,
       );
 
       const data = await this.graphql.post<PricesRoundTripResponse>(
@@ -157,7 +186,7 @@ export class TravelpayoutsFlightsApi {
               destination: params.destination,
               depart_dates: params.departDate,
               return_dates: params.returnDate,
-              no_lowcost: params.noLowcost,
+              no_lowcost: true,
               ...(params.tripClass ? { trip_class: params.tripClass } : {}),
               ...(typeof params.direct === "boolean"
                 ? { direct: params.direct }

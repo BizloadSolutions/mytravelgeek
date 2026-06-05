@@ -88,7 +88,11 @@ export class FlightsService {
       offset: 0,
     });
 
-    const flights = this.filterExactFlights(rows, departDate, limit);
+    const { flights, usedFallback } = this.pickFlightsForDate(
+      rows,
+      departDate,
+      limit,
+    );
 
     if (!flights.length) {
       return { payload: null, rawCount: 0, hasMore: false };
@@ -107,6 +111,9 @@ export class FlightsService {
     const payload: FlightsChatPayload = {
       routeTitle: `Flights to ${getDestinationCityName(params.destination)}`,
       intro: this.buildIntro(params, passengersLabel, travelDateLabel),
+      availabilityNote: usedFallback
+        ? `No flights on ${travelDateLabel}; showing the best prices in that month instead.`
+        : undefined,
       cabinClass: "Economy",
       passengersLabel,
       originCode: params.origin,
@@ -138,24 +145,33 @@ export class FlightsService {
       limit,
       offset,
     });
-    rows = this.filterExactFlights(rows, params.departDate, limit);
+    const { flights: pageFlights, usedFallback } = this.pickFlightsForDate(
+      rows,
+      params.departDate,
+      limit,
+    );
 
-    if (!rows.length) {
+    if (!pageFlights.length) {
       return { payload: null, rawCount: 0, hasMore: false };
     }
 
     const hasMore = rows.length >= limit;
-    const flights = rows.map((row, index) =>
+    const flights = pageFlights.map((row, index) =>
       this.mapRowToCard(row, params, offset + index),
     );
 
-    const travelDateLabel = this.formatTravelDateLabelFromYmd(params.departDate);
+    const travelDateLabel = this.formatTravelDateLabelFromYmd(
+      params.departDate,
+    );
     const passengersLabel =
       params.adults === 1 ? "1 adult" : `${params.adults} adults`;
 
     const payload: FlightsChatPayload = {
       routeTitle: `Flights to ${getDestinationCityName(params.destination)}`,
       intro: this.buildIntro(params, passengersLabel, travelDateLabel),
+      availabilityNote: usedFallback
+        ? `No flights on ${travelDateLabel}; showing the best prices in that month instead.`
+        : undefined,
       cabinClass: "Economy",
       passengersLabel,
       originCode: params.origin,
@@ -173,14 +189,20 @@ export class FlightsService {
     return { payload, rawCount: rows.length, hasMore };
   }
 
-  private filterExactFlights(
+  private pickFlightsForDate(
     rows: TravelpayoutsPriceRow[],
     targetDate: string,
     limit: number,
-  ): TravelpayoutsPriceRow[] {
-    return rows
-      .filter((row) => this.departureMatchesDate(row.departure_at, targetDate))
-      .slice(0, limit);
+  ): { flights: TravelpayoutsPriceRow[]; usedFallback: boolean } {
+    const exact = rows.filter((row) =>
+      this.departureMatchesDate(row.departure_at, targetDate),
+    );
+    if (exact.length) {
+      return { flights: exact.slice(0, limit), usedFallback: false };
+    }
+
+    // Travelpayouts `depart_months` returns cheapest fares in the month, not a single day.
+    return { flights: rows.slice(0, limit), usedFallback: rows.length > 0 };
   }
 
   private toSearchContext(params: FlightSearchParams): FlightSearchContext {
@@ -189,19 +211,15 @@ export class FlightsService {
       destination: params.destination,
       departDate: params.departDate,
       adults: params.adults,
-      noLowcost: params.noLowcost,
+      noLowcost: true,
     };
   }
-
-
 
   private departureMatchesDate(iso: string | undefined, targetYmd: string) {
     if (!iso) return false;
     const day = iso.length >= 10 ? iso.slice(0, 10) : iso;
     return day === targetYmd;
   }
-
-
 
   private mapRowToCard(
     row: TravelpayoutsPriceRow,
@@ -247,13 +265,14 @@ export class FlightsService {
       badgeVariant = "cheapest";
     }
 
-    
     const stopsLabel = STATIC_STOPS;
     const offset = params.offset ?? 0;
 
     // Get airline information
     const airlineIata = row.main_airline?.trim().toUpperCase();
-    const airlineInfo = airlineIata ? getAirlineInfo(airlineIata) : { name: "Unknown Airline", logo: { kiwi: "" } };
+    const airlineInfo = airlineIata
+      ? getAirlineInfo(airlineIata)
+      : { name: "Unknown Airline", logo: { kiwi: "" } };
 
     return {
       id: `${originCode}-${destCode}-${offset}-${globalIndex}-${departureAt}`,
@@ -356,6 +375,4 @@ export class FlightsService {
       maximumFractionDigits: 2,
     }).format(value);
   }
-
-
 }
