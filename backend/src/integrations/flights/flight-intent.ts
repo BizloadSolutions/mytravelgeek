@@ -4,6 +4,7 @@ import { FLIGHTS_PAGE_SIZE } from "../../helper/constant";
 import type { AnthropicService } from "../../ai/anthropic.service";
 import type { FlightSearchParams } from "./flight.types";
 import type { FlightSearchParams as ExtractedFlightData } from "../../interfaces/flight-data";
+import { parseRouteCities } from "../../helper/city-iata";
 import fs from "node:fs";
 
 export async function extractFlightSearchParams(
@@ -44,11 +45,31 @@ export async function extractFlightSearchParams(
       .replace(/\n?```$/, "");
 
     const parsed: ExtractedFlightData = JSON.parse(cleaned);
-    return parsed;
+    console.log(
+      "extracted flight data -------------------------------->",
+      parsed,
+    );
+    return fillMissingAirports(parsed, message);
   } catch (error) {
     console.error("extractFlightSearchParams error:", error);
     return null;
   }
+}
+
+function fillMissingAirports(
+  parsed: ExtractedFlightData,
+  query: string,
+): ExtractedFlightData {
+  const route = parseRouteCities(query);
+  const origin = parsed.origin?.trim().toUpperCase() || route.origin || null;
+  const destination =
+    parsed.destination?.trim().toUpperCase() || route.destination || null;
+
+  if (origin === parsed.origin && destination === parsed.destination) {
+    return parsed;
+  }
+
+  return { ...parsed, origin, destination };
 }
 
 function lastUserText(messages: ChatMessage[]) {
@@ -101,10 +122,7 @@ export async function buildFlightSearchParams(
   const text = lastUserText(messages).trim();
   if (!text) return null;
 
-  console.log("Just before extractFlightSearchParams....------------> ", text);
-
   const parsed = await extractFlightSearchParams(text, anthropic);
-  console.log("After extractFlightSearchParams....------------> ", parsed);
 
   if (!parsed?.origin || !parsed.destination) return null;
 
@@ -112,7 +130,6 @@ export async function buildFlightSearchParams(
   const departDate = parsed.departureDate ?? getTomorrowYmd();
 
   const direct = parsed.maxStops === 0 ? true : undefined;
-  const noLowcost = false;
 
   return {
     origin: parsed.origin,
@@ -123,7 +140,7 @@ export async function buildFlightSearchParams(
         ? (parsed.returnDate ?? undefined)
         : undefined,
     adults: parsed.passengers?.adults ?? 1,
-    noLowcost,
+    noLowcost: true,
     direct,
     tripClass: cabinToTripClass(parsed.cabinClass),
     limit: FLIGHTS_PAGE_SIZE,

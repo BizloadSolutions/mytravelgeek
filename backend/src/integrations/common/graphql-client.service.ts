@@ -14,6 +14,10 @@ export class GraphqlClientService {
     accessToken: string,
     body: GraphqlRequest,
   ): Promise<T> {
+    this.logger.log(
+      "body -------------------------------->",
+      JSON.stringify(body),
+    );
     const response = await fetch(endpoint, {
       method: "POST",
       headers: {

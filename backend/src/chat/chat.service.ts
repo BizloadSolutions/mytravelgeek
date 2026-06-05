@@ -49,7 +49,9 @@ export class ChatService {
       this.logger.debug("Attempting flight search...");
       flightsPayload = await this.runFlightSearch(messages);
       if (flightsPayload) {
-        this.logger.log(`✅ Flights found: ${flightsPayload.flights?.length || 0} options`);
+        this.logger.log(
+          `✅ Flights found: ${flightsPayload.flights?.length || 0} options`,
+        );
       } else {
         this.logger.warn("⚠️ No flights payload returned from search");
       }
@@ -85,9 +87,13 @@ export class ChatService {
         ? `${finalReply}\n\n${flightsPayload.availabilityNote}`
         : finalReply;
       responseBody.flights = flightsPayload;
-      this.logger.log(`📤 Response includes ${flightsPayload.flights?.length || 0} flights`);
+      this.logger.log(
+        `📤 Response includes ${flightsPayload.flights?.length || 0} flights`,
+      );
     } else {
-      this.logger.debug(`📤 Response has no flights (intent: ${classified.intent})`);
+      this.logger.debug(
+        `📤 Response has no flights (intent: ${classified.intent})`,
+      );
     }
 
     return responseBody;
@@ -104,14 +110,18 @@ export class ChatService {
   private async runFlightSearch(
     messages: ChatMessage[],
   ): Promise<FlightsChatPayload | null> {
-    this.logger.debug(`🔍 Building flight search params from ${messages.length} messages`);
+    this.logger.debug(
+      `🔍 Building flight search params from ${messages.length} messages`,
+    );
 
     const params = await buildFlightSearchParams(messages, this.anthropic);
-    
+
     if (!params) {
       this.logger.warn("⚠️ No flight params extracted");
     } else {
-      this.logger.debug(`✓ Params extracted: ${params.origin} → ${params.destination}`);
+      this.logger.debug(
+        `✓ Params extracted: ${params.origin} → ${params.destination}`,
+      );
     }
 
     if (!params) {
