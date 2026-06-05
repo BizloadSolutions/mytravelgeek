@@ -12,6 +12,26 @@ import type {
 
 type Props = Partial<FlightsChatPayload>;
 
+function renderAvailabilityInline(text: string) {
+  const trimmed = text.trim();
+  const match =
+    /No flights on\s+([^;.!?]+)\s*;\s*(showing\s+.*?instead\.?)/i.exec(trimmed);
+  if (!match) return trimmed;
+
+  const date = match[1].trim();
+  const fallback = match[2].trim();
+
+  const prefix = trimmed.slice(0, match.index).trimEnd();
+  const prefixWithSpace = prefix ? `${prefix} ` : "";
+
+  return (
+    <>
+      {prefixWithSpace}
+      <strong>No flights on {date}</strong>; <strong>{fallback}</strong>
+    </>
+  );
+}
+
 function FlightPathGraphic({
   stopsLabel,
   durationLabel,
@@ -252,9 +272,12 @@ const DEFAULT_PAYLOAD: FlightsChatPayload = {
 
 const FlightsOptionInSideChat = (props: Props) => {
   // Use destination city from airport data if available
-  const destinationCity = props.destinationCode ? getAirportCity(props.destinationCode) : "Destination";
+  const destinationCity = props.destinationCode
+    ? getAirportCity(props.destinationCode)
+    : "Destination";
   const intro = props.intro?.trim() || DEFAULT_PAYLOAD.intro;
   const routeTitle = props.routeTitle ?? `${destinationCity} Flights`;
+  const availabilityNote = props.availabilityNote?.trim();
 
   const [flights, setFlights] = useState<FlightOptionCard[]>(
     () => props.flights ?? DEFAULT_PAYLOAD.flights,
@@ -314,7 +337,12 @@ const FlightsOptionInSideChat = (props: Props) => {
         {routeTitle ? (
           <b className="text-base text-[var(--main-primary)]">{routeTitle}</b>
         ) : null}
-        <p className="m-0 text-sm font-normal">{intro}</p>
+        <p className="m-0 text-sm font-normal">
+          {renderAvailabilityInline(intro)}
+          {availabilityNote ? (
+            <> {renderAvailabilityInline(availabilityNote)}</>
+          ) : null}
+        </p>
       </div>
       <div className="flex flex-col gap-2.5 self-stretch">
         {flights.map((flight) => (

@@ -7,6 +7,10 @@
  * before React hydrates. These warnings are noise — the attributes
  * are added by the user's browser, not by our code, and they only
  * appear in development.
+ *
+ * Also filters console noise emitted from within third-party widget
+ * scripts (e.g. the Travelpayouts `tpembars.com` embed, which logs
+ * "config is not valid") — errors we neither cause nor can fix.
  */
 
 const EXTENSION_ATTR_SIGNATURES = [
@@ -25,6 +29,16 @@ const HYDRATION_MSG_SIGNATURES = [
   "server rendered HTML didn't match",
   "Hydration failed because",
 ];
+
+// Third-party scripts whose internal console noise we suppress. Detected
+// by inspecting the call stack, so only errors originating *inside* these
+// scripts are filtered — never our own code.
+const THIRD_PARTY_NOISE_SOURCES = ["tpembars.com"];
+
+function isThirdPartyScriptNoise(): boolean {
+  const stack = new Error().stack ?? "";
+  return THIRD_PARTY_NOISE_SOURCES.some((s) => stack.includes(s));
+}
 
 function isExtensionHydrationWarning(args: unknown[]): boolean {
   const joined = args
@@ -45,6 +59,7 @@ if (typeof window !== "undefined") {
     const originalError = console.error;
     console.error = (...args: unknown[]) => {
       if (isExtensionHydrationWarning(args)) return;
+      if (isThirdPartyScriptNoise()) return;
       originalError.apply(console, args as []);
     };
   }
