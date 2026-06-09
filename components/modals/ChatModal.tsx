@@ -68,10 +68,6 @@ function AssistantMessage({
       )}
       {flightFallback ? (
         <div className="flex flex-col gap-1">
-          <p className="m-0 text-xs text-zinc-600">
-            We didn&apos;t find these flight options here. Please search on
-            Aviasales for more routes, airlines, and dates.
-          </p>
           <AviasalesMoreLink url={flightFallback.searchUrl} />
         </div>
       ) : null}

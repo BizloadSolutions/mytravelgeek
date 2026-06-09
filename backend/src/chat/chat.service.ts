@@ -102,7 +102,7 @@ export class ChatService {
       if (fallback) {
         responseBody.flightFallback = fallback;
         responseBody.reply =
-          "We couldn't find flight options for your search here.";
+          "I couldn't find any flights matching your search right now. You can explore more routes, airlines, and flexible dates on Aviasales below.";
       }
       this.logger.debug(
         `📤 Response has no flights (intent: ${classified.intent})`,
