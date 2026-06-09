@@ -178,8 +178,7 @@ export class ChatService {
   private buildFlightSearchFallback(
     params: FlightSearchParams | null,
   ): FlightSearchFallback | null {
-    const marker = this.config.keys.AVIASALES_MARKER?.trim();
-    if (!marker) return null;
+    const marker = this.config.keys.AVIASALES_MARKER?.trim() || "";
 
     if (params?.origin && params.destination) {
       return {

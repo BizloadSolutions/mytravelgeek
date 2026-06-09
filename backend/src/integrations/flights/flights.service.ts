@@ -202,8 +202,7 @@ export class FlightsService {
   }
 
   private buildAviasalesSearchUrl(params: FlightSearchParams) {
-    const marker = this.config.keys.AVIASALES_MARKER?.trim();
-    if (!marker) return undefined;
+    const marker = this.config.keys.AVIASALES_MARKER?.trim() || "";
 
     return buildAviasalesSearchUrl(
       {
