@@ -9,10 +9,11 @@ import {
   type KeyboardEvent,
 } from "react";
 import AssistantMarkdown from "@/components/chat/AssistantMarkdown";
+import AviasalesMoreLink from "@/components/flights/AviasalesMoreLink";
 import FlightsOptionInSideChat from "@/components/flights/FlightsOptionInSideChat";
 import ChatHelp from "../ChatHelp";
 import { sendChatMessage } from "@/lib/chat-api";
-import type { ChatMessage } from "@/lib/chat-types";
+import type { ChatMessage, FlightSearchFallback } from "@/lib/chat-types";
 import { fetchFlightPage } from "@/lib/flights-api";
 import { isShowMapVIew } from "../utils/helpers";
 
@@ -51,10 +52,29 @@ function TypingIndicator() {
   );
 }
 
-function AssistantMessage({ content }: { content: string }) {
+function AssistantMessage({
+  content,
+  flightFallback,
+}: {
+  content: string;
+  flightFallback?: FlightSearchFallback;
+}) {
   return (
     <div className="flex w-fit lg:max-w-[80%] max-w-[90%] flex-col gap-3 rounded-br-lg rounded-tl-lg rounded-tr-lg bg-[var(--primary-50)] p-3">
-      <AssistantMarkdown content={content} />
+      {flightFallback ? (
+        <p className="m-0 text-sm font-normal">{content}</p>
+      ) : (
+        <AssistantMarkdown content={content} />
+      )}
+      {flightFallback ? (
+        <div className="flex flex-col gap-1">
+          <p className="m-0 text-xs text-zinc-600">
+            We didn&apos;t find these flight options here. Please search on
+            Aviasales for more routes, airlines, and dates.
+          </p>
+          <AviasalesMoreLink url={flightFallback.searchUrl} />
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -147,13 +167,15 @@ export default function ChatModal({ open, initialQuery = "" }: ChatModalProps) {
           }
         }
 
-        const { reply, flights } = await sendChatMessage(conversation);
+        const { reply, flights, flightFallback } =
+          await sendChatMessage(conversation);
         syncMessages([
           ...conversation,
           {
             role: "assistant",
             content: reply,
             ...(flights ? { flights } : {}),
+            ...(flightFallback ? { flightFallback } : {}),
           },
         ]);
       } catch (error) {
@@ -249,6 +271,7 @@ export default function ChatModal({ open, initialQuery = "" }: ChatModalProps) {
             <AssistantMessage
               key={`assistant-${index}-${message.content.slice(0, 24)}`}
               content={message.content}
+              flightFallback={message.flightFallback}
             />
           ),
         )}

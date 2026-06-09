@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { fetchFlightPage } from "@/lib/flights-api";
 import { getAirportCity } from "@/lib/airports";
+import AviasalesMoreLink from "@/components/flights/AviasalesMoreLink";
 import type {
   FlightOptionCard,
   FlightsChatPayload,
@@ -12,7 +13,7 @@ import type {
 
 type Props = Partial<FlightsChatPayload>;
 
-function renderAvailabilityInline(text: string) {
+function renderAvailabilityInline(text: string, searchMoreUrl?: string) {
   const trimmed = text.trim();
   const match =
     /No flights on\s+([^;.!?]+)\s*;\s*(showing\s+.*?instead\.?)/i.exec(trimmed);
@@ -28,6 +29,7 @@ function renderAvailabilityInline(text: string) {
     <>
       {prefixWithSpace}
       <strong>No flights on {date}</strong>; <strong>{fallback}</strong>
+      {searchMoreUrl ? <AviasalesMoreLink url={searchMoreUrl} /> : null}
     </>
   );
 }
@@ -179,7 +181,9 @@ function FlightCard({ flight }: { flight: FlightOptionCard }) {
                   {flight.airlineName}
                 </span>
                 <span className="text-xs font-normal text-zinc-600">
-                  {flight.routeCode} &bull; {flight.travelDate}
+                  {flight.returnTravelDate
+                    ? `${flight.routeCode.replace(/\s*>\s*/g, " ↔ ")} • ${flight.travelDate} – ${flight.returnTravelDate}`
+                    : `${flight.routeCode} • ${flight.travelDate}`}
                 </span>
               </div>
             </div>
@@ -278,6 +282,7 @@ const FlightsOptionInSideChat = (props: Props) => {
   const intro = props.intro?.trim() || DEFAULT_PAYLOAD.intro;
   const routeTitle = props.routeTitle ?? `${destinationCity} Flights`;
   const availabilityNote = props.availabilityNote?.trim();
+  const searchMoreUrl = props.searchMoreUrl?.trim();
 
   const [flights, setFlights] = useState<FlightOptionCard[]>(
     () => props.flights ?? DEFAULT_PAYLOAD.flights,
@@ -338,9 +343,9 @@ const FlightsOptionInSideChat = (props: Props) => {
           <b className="text-base text-[var(--main-primary)]">{routeTitle}</b>
         ) : null}
         <p className="m-0 text-sm font-normal">
-          {renderAvailabilityInline(intro)}
+          {intro}
           {availabilityNote ? (
-            <> {renderAvailabilityInline(availabilityNote)}</>
+            <> {renderAvailabilityInline(availabilityNote, searchMoreUrl)}</>
           ) : null}
         </p>
       </div>

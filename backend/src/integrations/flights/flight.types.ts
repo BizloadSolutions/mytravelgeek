@@ -27,6 +27,7 @@ export type FlightsPagination = {
 
 export type TravelpayoutsPriceRow = {
   departure_at?: string;
+  return_at?: string;
   value?: number;
   ticket_link?: string;
   currency?: string;
@@ -34,7 +35,7 @@ export type TravelpayoutsPriceRow = {
   origin_country_iata?: string;
   destination_airport_iata?: string;
   destination_city_iata?: string;
-  /** Flight duration in minutes. */
+  /** Flight duration in minutes (outbound for round-trip). */
   duration?: number;
   main_airline?: string;
   provider?: string;
@@ -60,6 +61,8 @@ export type FlightOptionCard = {
   airlineLogoUrl?: string;
   routeCode: string;
   travelDate: string;
+  /** Formatted return date for round-trip cards. */
+  returnTravelDate?: string;
   departureTime: string;
   /** Arrival time, derived from departure + duration. */
   arrivalTime: string;
@@ -85,6 +88,7 @@ export type FlightsChatPayload = {
   destinationCode: string;
   travelDateLabel: string;
   flights: FlightOptionCard[];
+  searchMoreUrl?: string;
   pagination?: FlightsPagination;
 };
 

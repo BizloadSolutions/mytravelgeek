@@ -2,10 +2,15 @@ import type { FlightsChatPayload } from "./flight-types";
 
 export type ChatRole = "user" | "assistant";
 
+export type FlightSearchFallback = {
+  searchUrl: string;
+};
+
 export type ChatMessage = {
   role: ChatRole;
   content: string;
   flights?: FlightsChatPayload;
+  flightFallback?: FlightSearchFallback;
 };
 
 export type ChatRequest = {
@@ -25,4 +30,5 @@ export type ChatResponse = {
   reply: string;
   intent?: ChatIntentType;
   flights?: FlightsChatPayload;
+  flightFallback?: FlightSearchFallback;
 };

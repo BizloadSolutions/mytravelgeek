@@ -12,6 +12,7 @@ import type {
 } from "./flight.types";
 import { TravelpayoutsFlightsApi } from "./travelpayouts-flights.api";
 import { getDestinationCityName } from "../../helper/airport";
+import { buildAviasalesSearchUrl } from "../../helper/aviasales-url";
 
 const FLIGHT_CURRENCY = "USD";
 const STATIC_STOPS = "Non-stop";
@@ -26,13 +27,18 @@ export class FlightsService {
   ) {}
 
   async search(params: FlightSearchParams): Promise<FlightSearchResult> {
+    const dateLabel = params.returnDate
+      ? ` ${params.departDate} → ${params.returnDate}`
+      : params.departDate
+        ? ` on ${params.departDate}`
+        : "";
     this.logger.log(
-      `Searching flights for ${params.origin}→${params.destination}${params.departDate ? ` on ${params.departDate}` : ""}`,
+      `Searching flights for ${params.origin}→${params.destination}${dateLabel}`,
     );
     const limit = params.limit || FLIGHTS_PAGE_SIZE;
     const offset = params.offset ?? 0;
 
-    // Round-trip: exact date search only.
+    // Round-trip: depart_date_min / return_date_max window search.
     if (params.returnDate && params.departDate) {
       const rows = await this.travelpayouts.searchRoundTrip({
         ...params,
@@ -114,6 +120,9 @@ export class FlightsService {
       availabilityNote: usedFallback
         ? `No flights on ${travelDateLabel}; showing the best prices in that month instead.`
         : undefined,
+      searchMoreUrl: usedFallback
+        ? this.buildAviasalesSearchUrl(params)
+        : undefined,
       cabinClass: "Economy",
       passengersLabel,
       originCode: params.origin,
@@ -172,6 +181,9 @@ export class FlightsService {
       availabilityNote: usedFallback
         ? `No flights on ${travelDateLabel}; showing the best prices in that month instead.`
         : undefined,
+      searchMoreUrl: usedFallback
+        ? this.buildAviasalesSearchUrl(params)
+        : undefined,
       cabinClass: "Economy",
       passengersLabel,
       originCode: params.origin,
@@ -187,6 +199,22 @@ export class FlightsService {
     };
 
     return { payload, rawCount: rows.length, hasMore };
+  }
+
+  private buildAviasalesSearchUrl(params: FlightSearchParams) {
+    const marker = this.config.keys.AVIASALES_MARKER?.trim();
+    if (!marker) return undefined;
+
+    return buildAviasalesSearchUrl(
+      {
+        origin: params.origin,
+        destination: params.destination,
+        departDate: params.departDate,
+        returnDate: params.returnDate,
+        adults: params.adults,
+      },
+      { marker },
+    );
   }
 
   private pickFlightsForDate(
@@ -246,6 +274,9 @@ export class FlightsService {
     const destCity = destCode;
     const routeCode = `${originCode} > ${destCode}`;
     const travelDate = this.formatCardDate(departureAt);
+    const returnTravelDate = row.return_at
+      ? this.formatCardDate(row.return_at)
+      : undefined;
     const reserveUrl = this.buildReserveUrl(row.ticket_link);
 
     const flightNumber = globalIndex + 1;
@@ -284,6 +315,7 @@ export class FlightsService {
       airlineLogoUrl: airlineInfo.logo.kiwi,
       routeCode,
       travelDate,
+      returnTravelDate,
       departureTime: this.formatTime(depDate),
       arrivalTime,
       durationLabel,

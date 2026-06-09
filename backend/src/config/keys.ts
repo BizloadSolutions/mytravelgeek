@@ -25,6 +25,7 @@ export class Keys {
   TRAVELPAYOUT_ACCESS_TOKEN?: string;
   TRAVELPAYOUTS_GRAPHQL_URL!: string;
   AVIASALES_SEARCH_BASE!: string;
+  AVIASALES_MARKER?: string;
   PORT!: string;
   BACKEND_URL?: string;
 
@@ -48,6 +49,7 @@ export class Keys {
     this.TRAVELPAYOUT_ACCESS_TOKEN = readEnv("TRAVELPAYOUT_ACCESS_TOKEN");
     this.TRAVELPAYOUTS_GRAPHQL_URL = readEnv("TRAVELPAYOUTS_GRAPHQL_URL") ?? "";
     this.AVIASALES_SEARCH_BASE = readEnv("AVIASALES_SEARCH_BASE") ?? "";
+    this.AVIASALES_MARKER = readEnv("AVIASALES_MARKER");
   }
 }
 
