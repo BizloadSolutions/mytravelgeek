@@ -20,6 +20,7 @@ export type FlightOptionCard = {
   airlineLogoUrl?: string;
   routeCode: string;
   travelDate: string;
+  returnTravelDate?: string;
   departureTime: string;
   /** Arrival time, derived from departure + duration. */
   arrivalTime: string;
@@ -60,6 +61,7 @@ export type FlightsChatPayload = {
   destinationCode?: string;
   travelDateLabel?: string;
   flights: FlightOptionCard[];
+  searchMoreUrl?: string;
   pagination?: FlightsPagination;
 };
 

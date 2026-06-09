@@ -4,11 +4,17 @@ import { ConfigService } from "../config/config.service";
 import { buildFlightSearchParams } from "../integrations/flights/flight-intent";
 import type { FlightsChatPayload } from "../integrations/flights/flight.types";
 import { FlightsService } from "../integrations/flights/flights.service";
+import {
+  buildAviasalesMarkerUrl,
+  buildAviasalesSearchUrl,
+} from "../helper/aviasales-url";
+import type { FlightSearchParams } from "../integrations/flights/flight.types";
 import type {
   ChatIntentType,
   ChatMessage,
   ChatRequest,
   ChatResponse,
+  FlightSearchFallback,
 } from "./chat.types";
 import { classifyChatIntentType } from "./chat-intent";
 
@@ -44,13 +50,16 @@ export class ChatService {
     }
 
     let flightsPayload: FlightsChatPayload | null = null;
+    let flightSearchParams: FlightSearchParams | null = null;
 
     if (classified.intent === "flight_search") {
       this.logger.debug("Attempting flight search...");
-      flightsPayload = await this.runFlightSearch(messages);
-      if (flightsPayload) {
+      const searchResult = await this.runFlightSearch(messages);
+      flightsPayload = searchResult.payload;
+      flightSearchParams = searchResult.params;
+      if (flightsPayload?.flights?.length) {
         this.logger.log(
-          `✅ Flights found: ${flightsPayload.flights?.length || 0} options`,
+          `✅ Flights found: ${flightsPayload.flights.length} options`,
         );
       } else {
         this.logger.warn("⚠️ No flights payload returned from search");
@@ -82,13 +91,21 @@ export class ChatService {
       intent: classified.intent,
     };
 
-    if (flightsPayload) {
-      flightsPayload.intro = flightsPayload.availabilityNote
-        ? `${finalReply}\n\n${flightsPayload.availabilityNote}`
-        : finalReply;
+    if (flightsPayload?.flights?.length) {
+      flightsPayload.intro = finalReply;
       responseBody.flights = flightsPayload;
       this.logger.log(
-        `📤 Response includes ${flightsPayload.flights?.length || 0} flights`,
+        `📤 Response includes ${flightsPayload.flights.length} flights`,
+      );
+    } else if (classified.intent === "flight_search") {
+      const fallback = this.buildFlightSearchFallback(flightSearchParams);
+      if (fallback) {
+        responseBody.flightFallback = fallback;
+        responseBody.reply =
+          "We couldn't find flight options for your search here.";
+      }
+      this.logger.debug(
+        `📤 Response has no flights (intent: ${classified.intent})`,
       );
     } else {
       this.logger.debug(
@@ -107,9 +124,10 @@ export class ChatService {
     ].join("\n");
   }
 
-  private async runFlightSearch(
-    messages: ChatMessage[],
-  ): Promise<FlightsChatPayload | null> {
+  private async runFlightSearch(messages: ChatMessage[]): Promise<{
+    payload: FlightsChatPayload | null;
+    params: FlightSearchParams | null;
+  }> {
     this.logger.debug(
       `🔍 Building flight search params from ${messages.length} messages`,
     );
@@ -128,7 +146,7 @@ export class ChatService {
       this.logger.warn(
         "🚫 Flight intent detected but missing origin/destination — asking user for clarification",
       );
-      return null;
+      return { payload: null, params: null };
     }
 
     this.logger.log(
@@ -147,14 +165,38 @@ export class ChatService {
           `✅ Flight API success: ${result.payload.flights.length} flights found`,
         );
       }
-      return result.payload;
+      return { payload: result.payload, params };
     } catch (error) {
       this.logger.error(
         `❌ Flight API failed: ${error instanceof Error ? error.message : error}`,
         error instanceof Error ? error.stack : "",
       );
-      return null;
+      return { payload: null, params };
     }
+  }
+
+  private buildFlightSearchFallback(
+    params: FlightSearchParams | null,
+  ): FlightSearchFallback | null {
+    const marker = this.config.keys.AVIASALES_MARKER?.trim();
+    if (!marker) return null;
+
+    if (params?.origin && params.destination) {
+      return {
+        searchUrl: buildAviasalesSearchUrl(
+          {
+            origin: params.origin,
+            destination: params.destination,
+            departDate: params.departDate,
+            returnDate: params.returnDate,
+            adults: params.adults,
+          },
+          { marker },
+        ),
+      };
+    }
+
+    return { searchUrl: buildAviasalesMarkerUrl(marker) };
   }
 
   private buildSystemPrompt(intent: ChatIntentType, hasLiveFlights: boolean) {

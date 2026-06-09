@@ -43,6 +43,7 @@ const PRICES_ROUND_TRIP_QUERY = `
       currency: "${FLIGHT_SEARCH_CURRENCY}"
     ) {
       departure_at
+      return_at
       value
       ticket_link
       currency
@@ -90,6 +91,26 @@ export class TravelpayoutsFlightsApi {
     return Array.isArray(data.prices_one_way) ? data.prices_one_way : [];
   }
 
+  private async fetchRoundTrip(
+    token: string,
+    variables: {
+      limit: number;
+      offset: number;
+      params: Record<string, unknown>;
+    },
+  ): Promise<TravelpayoutsPriceRow[]> {
+    const data = await this.graphql.post<PricesRoundTripResponse>(
+      this.config.keys.TRAVELPAYOUTS_GRAPHQL_URL,
+      token,
+      {
+        query: PRICES_ROUND_TRIP_QUERY,
+        variables,
+      },
+    );
+
+    return Array.isArray(data.prices_round_trip) ? data.prices_round_trip : [];
+  }
+
   async searchOneWay(
     params: FlightSearchParams,
   ): Promise<TravelpayoutsPriceRow[]> {
@@ -115,7 +136,9 @@ export class TravelpayoutsFlightsApi {
         destination: params.destination,
         no_lowcost: true,
         ...(params.tripClass ? { trip_class: params.tripClass } : {}),
-        ...(typeof params.direct === "boolean" ? { direct: params.direct } : {}),
+        ...(typeof params.direct === "boolean"
+          ? { direct: params.direct }
+          : {}),
       };
 
       // 1) Try exact-date query (works in Playground for specific days).
@@ -173,32 +196,24 @@ export class TravelpayoutsFlightsApi {
         `Travelpayouts GraphQL (${FLIGHT_SEARCH_CURRENCY}): ${JSON.stringify(params)}`,
       );
 
-      const data = await this.graphql.post<PricesRoundTripResponse>(
-        this.config.keys.TRAVELPAYOUTS_GRAPHQL_URL,
-        token,
-        {
-          query: PRICES_ROUND_TRIP_QUERY,
-          variables: {
-            limit: params.limit,
-            offset: params.offset,
-            params: {
-              origin: params.origin,
-              destination: params.destination,
-              depart_dates: params.departDate,
-              return_dates: params.returnDate,
-              no_lowcost: true,
-              ...(params.tripClass ? { trip_class: params.tripClass } : {}),
-              ...(typeof params.direct === "boolean"
-                ? { direct: params.direct }
-                : {}),
-            },
-          },
-        },
-      );
+      const baseParams = {
+        origin: params.origin,
+        destination: params.destination,
+        depart_date_min: params.departDate,
+        return_date_max: params.returnDate,
+        no_lowcost: true,
+        ...(params.tripClass ? { trip_class: params.tripClass } : {}),
+        ...(typeof params.direct === "boolean"
+          ? { direct: params.direct }
+          : {}),
+      };
 
-      const rows = Array.isArray(data.prices_round_trip)
-        ? data.prices_round_trip
-        : [];
+      const rows = await this.fetchRoundTrip(token, {
+        limit: params.limit,
+        offset: params.offset,
+        params: baseParams,
+      });
+
       this.logger.log(`Travelpayouts returned ${rows.length} flight row(s).`);
       return rows;
     } catch (error) {
