@@ -5,7 +5,7 @@ export {
   getAirportDisplayName,
   getFlightRouteDisplay,
   type AirportInfo,
-} from './airports';
+} from "./airports";
 
 // Airline utilities
 export {
@@ -13,11 +13,12 @@ export {
   getAirlineName,
   getAirlineLogoUrl,
   type AirlineInfo,
-} from './airlines';
+} from "./airlines";
 
 // Chat types and APIs
-export type { ChatMessage, ChatResponse, ChatRequest } from './chat-types';
-export { sendChatMessage } from './chat-api';
+export type { ChatMessage, ChatResponse, ChatRequest } from "./all-types";
+export { api } from "./api-client";
+export { sendChatMessage } from "./chat-api";
 
 // Flight types and APIs
 export type {
@@ -27,5 +28,5 @@ export type {
   FlightsChatPayload,
   FlightSearchResponse,
   FlightStopSegment,
-} from './flight-types';
-export { fetchFlightPage } from './flights-api';
+} from "./flight-types";
+export { fetchFlightPage } from "./flights-api";

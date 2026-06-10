@@ -1,43 +1,30 @@
-import type { ChatMessage, ChatResponse } from "./chat-types";
-
-type ChatErrorBody = {
-  error?: string;
-  message?: string | string[];
-};
-
-function parseErrorMessage(data: ChatErrorBody | undefined, fallback: string) {
-  if (!data) return fallback;
-  if (typeof data.error === "string" && data.error.trim()) return data.error;
-  if (typeof data.message === "string") return data.message;
-  if (Array.isArray(data.message)) return data.message.join(", ");
-  return fallback;
-}
+import { api, getApiErrorMessage } from "./api-client";
+import type { ChatMessage, ChatResponse } from "./all-types";
 
 export async function sendChatMessage(
   messages: ChatMessage[],
 ): Promise<ChatResponse> {
-  const response = await fetch("/api/chat", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ messages }),
-  });
+  try {
+    const { data } = await api.post<ChatResponse>("/chat", {
+      messages: messages.map(({ role, content }) => ({ role, content })),
+    });
 
-  const data = (await response.json().catch(() => ({}))) as
-    | ChatResponse
-    | ChatErrorBody;
+    if (!data || typeof data.reply !== "string") {
+      throw new Error("Unexpected response from Travel Geek AI.");
+    }
 
-  if (!response.ok) {
+    console.log(
+      "------------------------- data from sendChatMessage ------------------------>",
+      data,
+    );
+
+    return data;
+  } catch (error) {
     throw new Error(
-      parseErrorMessage(
-        data as ChatErrorBody,
+      getApiErrorMessage(
+        error,
         "Could not reach Travel Geek AI. Is the backend running?",
       ),
     );
   }
-
-  if (!data || typeof (data as ChatResponse).reply !== "string") {
-    throw new Error("Unexpected response from Travel Geek AI.");
-  }
-
-  return data as ChatResponse;
 }

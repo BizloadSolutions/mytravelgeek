@@ -6,15 +6,18 @@ import {
   useRef,
   useState,
   type FormEvent,
-  type KeyboardEvent,
 } from "react";
 import AssistantMarkdown from "@/components/chat/AssistantMarkdown";
-import AviasalesMoreLink from "@/components/flights/AviasalesMoreLink";
 import FlightsOptionInSideChat from "@/components/flights/FlightsOptionInSideChat";
+import TravelResourceLinks from "@/components/chat/TravelResourceLinks";
 import ChatHelp from "../ChatHelp";
-import { sendChatMessage } from "@/lib/chat-api";
-import type { ChatMessage, FlightSearchFallback } from "@/lib/chat-types";
-import { fetchFlightPage } from "@/lib/flights-api";
+import { api, getApiErrorMessage } from "@/lib/api-client";
+import type {
+  ChatMessage,
+  ChatResponse,
+  FlightSearchFallback,
+  TravelLink,
+} from "@/lib/all-types";
 import { isShowMapVIew } from "../utils/helpers";
 
 const QUICK_PROMPTS = [
@@ -29,19 +32,6 @@ const QUICK_PROMPTS = [
   { label: "Hotels", text: "Suggest hotels for my upcoming trip." },
 ] as const;
 
-const LOAD_MORE_FLIGHTS_RE =
-  /\b(show|see|load|get|find)\s+(me\s+)?(more|another|additional)\s+(flight|flights|options)\b/i;
-
-function findLastFlightMessageIndex(messages: ChatMessage[]) {
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const message = messages[i];
-    if (message.role === "assistant" && message.flights?.pagination?.hasMore) {
-      return i;
-    }
-  }
-  return -1;
-}
-
 function TypingIndicator() {
   return (
     <div className="flex w-fit gap-1.5 rounded-br-lg rounded-tl-lg rounded-tr-lg bg-[var(--primary-50)] p-3">
@@ -55,22 +45,28 @@ function TypingIndicator() {
 function AssistantMessage({
   content,
   flightFallback,
+  travelLinks,
 }: {
   content: string;
   flightFallback?: FlightSearchFallback;
+  travelLinks?: TravelLink[];
 }) {
+  const links =
+    travelLinks ??
+    (flightFallback
+      ? [
+          {
+            id: "aviasales",
+            label: "Search flights on Aviasales",
+            url: flightFallback.searchUrl,
+          },
+        ]
+      : undefined);
+
   return (
     <div className="flex w-fit lg:max-w-[80%] max-w-[90%] flex-col gap-3 rounded-br-lg rounded-tl-lg rounded-tr-lg bg-[var(--primary-50)] p-3">
-      {flightFallback ? (
-        <p className="m-0 text-sm font-normal">{content}</p>
-      ) : (
-        <AssistantMarkdown content={content} />
-      )}
-      {flightFallback ? (
-        <div className="flex flex-col gap-1">
-          <AviasalesMoreLink url={flightFallback.searchUrl} />
-        </div>
-      ) : null}
+      <AssistantMarkdown content={content} />
+      {links?.length ? <TravelResourceLinks links={links} /> : null}
     </div>
   );
 }
@@ -95,105 +91,73 @@ export default function ChatModal({ open, initialQuery = "" }: ChatModalProps) {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const sentInitialRef = useRef<string | null>(null);
   const messagesRef = useRef<ChatMessage[]>([]);
-  const isLoadingRef = useRef(false);
+  const sentInitialRef = useRef<string | null>(null);
+  const isSendingRef = useRef(false);
 
-  const syncMessages = useCallback((next: ChatMessage[]) => {
-    messagesRef.current = next;
-    setMessages(next);
-  }, []);
-
-  const scrollToBottom = useCallback(() => {
+  useEffect(() => {
     scrollRef.current?.scrollTo({
       top: scrollRef.current.scrollHeight,
       behavior: "smooth",
     });
+  }, [messages, isLoading]);
+
+  const sendMessage = useCallback(async (rawText: string) => {
+    const text = rawText.trim();
+    if (!text || isSendingRef.current) return;
+
+    setInput("");
+    isSendingRef.current = true;
+    setIsLoading(true);
+
+    const userMessage: ChatMessage = { role: "user", content: text };
+    const conversation = [...messagesRef.current, userMessage];
+    messagesRef.current = conversation;
+    setMessages(conversation);
+
+    try {
+      const { data } = await api.post<ChatResponse>("/chat", {
+        messages: conversation.map(({ role, content }) => ({ role, content })),
+      });
+
+      console.log("data -------------------------------->", data);
+
+      const nextMessages: ChatMessage[] = [
+        ...conversation,
+        {
+          role: "assistant",
+          content: data.reply,
+          ...(data.flights ? { flights: data.flights } : {}),
+          ...(data.flightFallback
+            ? { flightFallback: data.flightFallback }
+            : {}),
+          ...(data.travelLinks?.length
+            ? { travelLinks: data.travelLinks }
+            : {}),
+        },
+      ];
+      messagesRef.current = nextMessages;
+      setMessages(nextMessages);
+    } catch (error) {
+      const message = getApiErrorMessage(
+        error,
+        "I couldn't reach the travel chat right now.",
+      );
+
+      const nextMessages: ChatMessage[] = [
+        ...conversation,
+        {
+          role: "assistant",
+          content: `${message} Please try again in a moment.`,
+        },
+      ];
+      messagesRef.current = nextMessages;
+      setMessages(nextMessages);
+    } finally {
+      isSendingRef.current = false;
+      setIsLoading(false);
+    }
   }, []);
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages, isLoading, scrollToBottom]);
-
-  const submitMessage = useCallback(
-    async (rawText: string) => {
-      const text = rawText.trim();
-      if (!text || isLoadingRef.current) return;
-
-      setInput("");
-
-      const prior = messagesRef.current;
-      const userMessage: ChatMessage = { role: "user", content: text };
-      const conversation = [...prior, userMessage];
-      syncMessages(conversation);
-
-      isLoadingRef.current = true;
-      setIsLoading(true);
-
-      try {
-        if (LOAD_MORE_FLIGHTS_RE.test(text)) {
-          const flightIndex = findLastFlightMessageIndex(prior);
-          if (flightIndex >= 0 && prior[flightIndex].flights?.pagination) {
-            const existing = prior[flightIndex].flights!;
-            const pag = existing.pagination!;
-            const result = await fetchFlightPage(pag.search, {
-              limit: pag.limit,
-              offset: pag.offset + pag.limit,
-            });
-
-            const next = [...conversation];
-            if (result.payload?.flights.length) {
-              next[flightIndex] = {
-                role: "assistant",
-                content: `Here are ${result.payload.flights.length} more flight options.`,
-                flights: {
-                  ...existing,
-                  flights: [...existing.flights, ...result.payload.flights],
-                  pagination: result.payload.pagination,
-                },
-              };
-            } else {
-              next.push({
-                role: "assistant",
-                content: "No more flights are available for this search.",
-              });
-            }
-            syncMessages(next);
-            return;
-          }
-        }
-
-        const { reply, flights, flightFallback } =
-          await sendChatMessage(conversation);
-        syncMessages([
-          ...conversation,
-          {
-            role: "assistant",
-            content: reply,
-            ...(flights ? { flights } : {}),
-            ...(flightFallback ? { flightFallback } : {}),
-          },
-        ]);
-      } catch (error) {
-        const message =
-          error instanceof Error
-            ? error.message
-            : "I couldn't reach the travel chat right now.";
-
-        syncMessages([
-          ...conversation,
-          {
-            role: "assistant",
-            content: `${message} Please try again in a moment.`,
-          },
-        ]);
-      } finally {
-        isLoadingRef.current = false;
-        setIsLoading(false);
-      }
-    },
-    [syncMessages],
-  );
 
   useEffect(() => {
     if (!open) {
@@ -205,20 +169,13 @@ export default function ChatModal({ open, initialQuery = "" }: ChatModalProps) {
     if (!query || sentInitialRef.current === query) return;
 
     sentInitialRef.current = query;
-    void submitMessage(query);
-  }, [open, initialQuery, submitMessage]);
+    sendMessage(query);
+  }, [open, initialQuery, sendMessage]);
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    void submitMessage(input);
-  };
-
-  const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === "Enter" && !event.shiftKey) {
-      event.preventDefault();
-      void submitMessage(input);
-    }
-  };
+    await sendMessage(input);
+  }
 
   return (
     <div
@@ -242,7 +199,7 @@ export default function ChatModal({ open, initialQuery = "" }: ChatModalProps) {
               key={prompt.label}
               type="button"
               disabled={isLoading}
-              onClick={() => void submitMessage(prompt.text)}
+              onClick={() => sendMessage(prompt.text)}
               className="flex min-w-0 flex-1 flex-col gap-[25px] rounded-lg border border-solid border-black/10 bg-gray-50 px-3 py-2 transition-colors hover:bg-zinc-100 disabled:opacity-50"
             >
               <span className="text-center text-xs font-normal text-[#6B7280]">
@@ -259,15 +216,24 @@ export default function ChatModal({ open, initialQuery = "" }: ChatModalProps) {
               content={message.content}
             />
           ) : message.flights ? (
-            <FlightsOptionInSideChat
+            <div
               key={`assistant-flights-${index}`}
-              {...message.flights}
-            />
+              className="flex w-full lg:max-w-[80%] max-w-[90%] flex-col gap-2"
+            >
+              <FlightsOptionInSideChat {...message.flights} />
+              {message.travelLinks?.length ? (
+                <TravelResourceLinks
+                  links={message.travelLinks}
+                  className="px-1"
+                />
+              ) : null}
+            </div>
           ) : (
             <AssistantMessage
               key={`assistant-${index}-${message.content.slice(0, 24)}`}
               content={message.content}
               flightFallback={message.flightFallback}
+              travelLinks={message.travelLinks}
             />
           ),
         )}
@@ -285,7 +251,6 @@ export default function ChatModal({ open, initialQuery = "" }: ChatModalProps) {
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
           placeholder="Type your question here"
           disabled={isLoading}
           className="min-h-0 min-w-0 flex-1 border-0 bg-transparent text-sm text-zinc-900 outline-none ring-0 placeholder:text-zinc-600 focus:ring-0 disabled:opacity-60"

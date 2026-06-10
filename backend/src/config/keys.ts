@@ -26,6 +26,11 @@ export class Keys {
   TRAVELPAYOUTS_GRAPHQL_URL!: string;
   AVIASALES_SEARCH_BASE!: string;
   AVIASALES_MARKER?: string;
+  KKDAY_URL?: string;
+  WEGOTRIP_URL?: string;
+  GETRENTACAR_URL?: string;
+  KIWI_TAXI_URL?: string;
+  YESIM_URL?: string;
   PORT!: string;
   BACKEND_URL?: string;
 
@@ -50,6 +55,11 @@ export class Keys {
     this.TRAVELPAYOUTS_GRAPHQL_URL = readEnv("TRAVELPAYOUTS_GRAPHQL_URL") ?? "";
     this.AVIASALES_SEARCH_BASE = readEnv("AVIASALES_SEARCH_BASE") ?? "";
     this.AVIASALES_MARKER = readEnv("AVIASALES_MARKER");
+    this.KKDAY_URL = readEnv("KKDAY_URL");
+    this.WEGOTRIP_URL = readEnv("WEGOTRIP_URL");
+    this.GETRENTACAR_URL = readEnv("GETRENTACAR_URL");
+    this.KIWI_TAXI_URL = readEnv("KIWI_TAXI_URL");
+    this.YESIM_URL = readEnv("YESIM_URL");
   }
 }
 

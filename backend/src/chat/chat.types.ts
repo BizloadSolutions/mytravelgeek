@@ -12,6 +12,10 @@ export type ChatRequest = {
 export type ChatIntentType =
   | "flight_search"
   | "hotel_search"
+  | "esim"
+  | "activities"
+  | "car_rental"
+  | "airport_transfer"
   | "itinerary"
   | "restaurants_bars"
   | "travel_safety"
@@ -24,6 +28,12 @@ export type ChatIntentType =
 
 export type { FlightsChatPayload } from "../integrations/flights/flight.types";
 
+export type TravelLink = {
+  id: string;
+  label: string;
+  url: string;
+};
+
 export type FlightSearchFallback = {
   searchUrl: string;
 };
@@ -33,5 +43,7 @@ export type ChatResponse = {
   /** What we understood the user wants (helps UI / debugging). */
   intent?: ChatIntentType;
   flights?: import("../integrations/flights/flight.types").FlightsChatPayload;
+  /** @deprecated Prefer travelLinks — kept for backward compatibility. */
   flightFallback?: FlightSearchFallback;
+  travelLinks?: TravelLink[];
 };

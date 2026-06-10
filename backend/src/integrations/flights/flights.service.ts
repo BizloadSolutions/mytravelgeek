@@ -31,7 +31,9 @@ export class FlightsService {
       ? ` ${params.departDate} → ${params.returnDate}`
       : params.departDate
         ? ` on ${params.departDate}`
-        : "";
+        : params.departMonth
+          ? ` in ${params.departMonth}`
+          : "";
     this.logger.log(
       `Searching flights for ${params.origin}→${params.destination}${dateLabel}`,
     );
@@ -78,8 +80,10 @@ export class FlightsService {
       return { payload, rawCount: rows.length, hasMore };
     }
 
-    if (!params.departDate) {
-      this.logger.warn("One-way flight search requires departDate.");
+    if (!params.departDate && !params.departMonth) {
+      this.logger.warn(
+        "One-way flight search requires departDate or departMonth.",
+      );
       return { payload: null, rawCount: 0, hasMore: false };
     }
 
@@ -87,18 +91,23 @@ export class FlightsService {
       return this.searchPage(params, limit, offset);
     }
 
-    const departDate = params.departDate;
+    return this.searchOneWayFirstPage(params, limit);
+  }
+
+  private async searchOneWayFirstPage(
+    params: FlightSearchParams,
+    limit: number,
+  ): Promise<FlightSearchResult> {
     const rows = await this.travelpayouts.searchOneWay({
       ...params,
       limit,
       offset: 0,
     });
 
-    const { flights, usedFallback } = this.pickFlightsForDate(
-      rows,
-      departDate,
-      limit,
-    );
+    const isMonthSearch = Boolean(params.departMonth && !params.departDate);
+    const { flights, usedFallback } = isMonthSearch
+      ? { flights: rows.slice(0, limit), usedFallback: false }
+      : this.pickFlightsForDate(rows, params.departDate!, limit);
 
     if (!flights.length) {
       return { payload: null, rawCount: 0, hasMore: false };
@@ -106,17 +115,23 @@ export class FlightsService {
 
     const hasMore = rows.length >= limit;
     const searchContext = this.toSearchContext(params);
-    const travelDateLabel = this.formatTravelDateLabelFromYmd(departDate);
+    const { travelDateLabel, datePreposition } =
+      this.resolveTravelDateLabel(params);
     const passengersLabel =
       params.adults === 1 ? "1 adult" : `${params.adults} adults`;
 
     const flightCards = flights.map((row, index) =>
-      this.mapRowToCard(row, params, offset + index),
+      this.mapRowToCard(row, params, index),
     );
 
     const payload: FlightsChatPayload = {
       routeTitle: `Flights to ${getDestinationCityName(params.destination)}`,
-      intro: this.buildIntro(params, passengersLabel, travelDateLabel),
+      intro: this.buildIntro(
+        params,
+        passengersLabel,
+        travelDateLabel,
+        datePreposition,
+      ),
       availabilityNote: usedFallback
         ? `No flights on ${travelDateLabel}; showing the best prices in that month instead.`
         : undefined,
@@ -145,20 +160,20 @@ export class FlightsService {
     limit: number,
     offset: number,
   ): Promise<FlightSearchResult> {
-    if (!params.departDate) {
+    if (!params.departDate && !params.departMonth) {
       return { payload: null, rawCount: 0, hasMore: false };
     }
 
-    let rows = await this.travelpayouts.searchOneWay({
+    const rows = await this.travelpayouts.searchOneWay({
       ...params,
       limit,
       offset,
     });
-    const { flights: pageFlights, usedFallback } = this.pickFlightsForDate(
-      rows,
-      params.departDate,
-      limit,
-    );
+
+    const isMonthSearch = Boolean(params.departMonth && !params.departDate);
+    const { flights: pageFlights, usedFallback } = isMonthSearch
+      ? { flights: rows.slice(0, limit), usedFallback: false }
+      : this.pickFlightsForDate(rows, params.departDate!, limit);
 
     if (!pageFlights.length) {
       return { payload: null, rawCount: 0, hasMore: false };
@@ -169,15 +184,19 @@ export class FlightsService {
       this.mapRowToCard(row, params, offset + index),
     );
 
-    const travelDateLabel = this.formatTravelDateLabelFromYmd(
-      params.departDate,
-    );
+    const { travelDateLabel, datePreposition } =
+      this.resolveTravelDateLabel(params);
     const passengersLabel =
       params.adults === 1 ? "1 adult" : `${params.adults} adults`;
 
     const payload: FlightsChatPayload = {
       routeTitle: `Flights to ${getDestinationCityName(params.destination)}`,
-      intro: this.buildIntro(params, passengersLabel, travelDateLabel),
+      intro: this.buildIntro(
+        params,
+        passengersLabel,
+        travelDateLabel,
+        datePreposition,
+      ),
       availabilityNote: usedFallback
         ? `No flights on ${travelDateLabel}; showing the best prices in that month instead.`
         : undefined,
@@ -228,7 +247,6 @@ export class FlightsService {
       return { flights: exact.slice(0, limit), usedFallback: false };
     }
 
-    // Travelpayouts `depart_months` returns cheapest fares in the month, not a single day.
     return { flights: rows.slice(0, limit), usedFallback: rows.length > 0 };
   }
 
@@ -237,8 +255,24 @@ export class FlightsService {
       origin: params.origin,
       destination: params.destination,
       departDate: params.departDate,
+      departMonth: params.departMonth,
       adults: params.adults,
-      noLowcost: true,
+      direct: params.direct,
+      tripClass: params.tripClass,
+    };
+  }
+
+  private resolveTravelDateLabel(params: FlightSearchParams) {
+    if (params.departMonth && !params.departDate) {
+      return {
+        travelDateLabel: this.formatTravelMonthLabelFromYmd(params.departMonth),
+        datePreposition: "in" as const,
+      };
+    }
+
+    return {
+      travelDateLabel: this.formatTravelDateLabelFromYmd(params.departDate!),
+      datePreposition: "on" as const,
     };
   }
 
@@ -342,10 +376,11 @@ export class FlightsService {
     params: FlightSearchParams,
     passengersLabel: string,
     travelDateLabel: string,
+    datePreposition: "on" | "in" = "on",
   ) {
     const destinationCity = getDestinationCityName(params.destination);
     const originCity = getDestinationCityName(params.origin);
-    return `Great Economy options for ${passengersLabel} from ${originCity} to ${destinationCity}${travelDateLabel ? ` on ${travelDateLabel}` : ""}. Pick the flight that works best for you.`;
+    return `Great Economy options for ${passengersLabel} from ${originCity} to ${destinationCity}${travelDateLabel ? ` ${datePreposition} ${travelDateLabel}` : ""}. Pick the flight that works best for you.`;
   }
 
   private formatTime(date: Date) {
@@ -372,6 +407,14 @@ export class FlightsService {
     return this.formatTravelDateLabel(
       new Date(year, month - 1, day).toISOString(),
     );
+  }
+
+  private formatTravelMonthLabelFromYmd(ymd: string) {
+    const [year, month] = ymd.split("-").map(Number);
+    if (!year || !month) return "";
+    return new Date(year, month - 1, 1).toLocaleDateString("en-US", {
+      month: "long",
+    });
   }
 
   private formatTravelDateLabel(iso?: string) {

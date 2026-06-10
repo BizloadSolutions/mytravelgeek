@@ -83,6 +83,57 @@ function getTomorrowYmd(): string {
   return date.toISOString().slice(0, 10);
 }
 
+/** Travelpayouts `depart_months` expects the first day of the month (YYYY-MM-01). */
+function toDepartMonthsParam(ymOrYmd: string): string {
+  const trimmed = ymOrYmd.trim();
+  if (/^\d{4}-\d{2}-01$/.test(trimmed)) return trimmed;
+  const monthMatch = /^(\d{4})-(\d{2})$/.exec(trimmed);
+  if (monthMatch) return `${monthMatch[1]}-${monthMatch[2]}-01`;
+  const dayMatch = /^(\d{4})-(\d{2})-\d{2}$/.exec(trimmed);
+  if (dayMatch) return `${dayMatch[1]}-${dayMatch[2]}-01`;
+  return trimmed;
+}
+
+/** Fallback when the LLM omits departureMonth for common month-only phrases. */
+function inferDepartureMonthFromQuery(
+  query: string,
+  referenceYmd: string,
+): string | null {
+  const lower = query.toLowerCase();
+  const ref = new Date(`${referenceYmd}T12:00:00`);
+
+  if (/\bnext month\b/.test(lower)) {
+    ref.setMonth(ref.getMonth() + 1);
+    return `${ref.getFullYear()}-${String(ref.getMonth() + 1).padStart(2, "0")}`;
+  }
+
+  if (/\bthis month\b/.test(lower)) {
+    return `${ref.getFullYear()}-${String(ref.getMonth() + 1).padStart(2, "0")}`;
+  }
+
+  return null;
+}
+
+function resolveDepartureTiming(
+  parsed: ExtractedFlightData,
+  query: string,
+  referenceYmd: string,
+): { departDate?: string; departMonth?: string } {
+  if (parsed.departureDate) {
+    return { departDate: parsed.departureDate };
+  }
+
+  const monthYm =
+    parsed.departureMonth?.trim() ||
+    inferDepartureMonthFromQuery(query, referenceYmd);
+
+  if (monthYm) {
+    return { departMonth: toDepartMonthsParam(monthYm) };
+  }
+
+  return { departDate: getTomorrowYmd() };
+}
+
 function cabinToTripClass(cabin: ExtractedFlightData["cabinClass"]) {
   switch (cabin) {
     case "business":
@@ -97,24 +148,6 @@ function cabinToTripClass(cabin: ExtractedFlightData["cabinClass"]) {
   }
 }
 
-export function buildAlternateDepartMonths(primaryMonth: string) {
-  const m = /^(\d{4})-(\d{2})-01$/.exec(primaryMonth);
-  if (!m) return [primaryMonth];
-
-  const year = Number(m[1]);
-  const month = Number(m[2]);
-  if (!year || month < 1 || month > 12) return [primaryMonth];
-
-  const out: string[] = [];
-  for (let i = 0; i < 3; i++) {
-    const idx = month - 1 + i;
-    const y = year + Math.floor(idx / 12);
-    const mm = String((idx % 12) + 1).padStart(2, "0");
-    out.push(`${y}-${mm}-01`);
-  }
-  return out;
-}
-
 export async function buildFlightSearchParams(
   messages: ChatMessage[],
   anthropic: AnthropicService,
@@ -126,8 +159,12 @@ export async function buildFlightSearchParams(
 
   if (!parsed?.origin || !parsed.destination) return null;
 
-  // When the user doesn't specify a departure date, default to tomorrow.
-  const departDate = parsed.departureDate ?? getTomorrowYmd();
+  const referenceYmd = new Date().toISOString().slice(0, 10);
+  const { departDate, departMonth } = resolveDepartureTiming(
+    parsed,
+    text,
+    referenceYmd,
+  );
 
   const direct = parsed.maxStops === 0 ? true : undefined;
 
@@ -135,12 +172,12 @@ export async function buildFlightSearchParams(
     origin: parsed.origin,
     destination: parsed.destination,
     departDate,
+    departMonth,
     returnDate:
       parsed.tripType === "roundtrip"
         ? (parsed.returnDate ?? undefined)
         : undefined,
     adults: parsed.passengers?.adults ?? 1,
-    noLowcost: true,
     direct,
     tripClass: cabinToTripClass(parsed.cabinClass),
     limit: FLIGHTS_PAGE_SIZE,

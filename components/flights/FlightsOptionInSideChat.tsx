@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import AssistantMarkdown from "@/components/chat/AssistantMarkdown";
 import { fetchFlightPage } from "@/lib/flights-api";
 import { getAirportCity } from "@/lib/airports";
 import AviasalesMoreLink from "@/components/flights/AviasalesMoreLink";
@@ -342,12 +343,12 @@ const FlightsOptionInSideChat = (props: Props) => {
         {routeTitle ? (
           <b className="text-base text-[var(--main-primary)]">{routeTitle}</b>
         ) : null}
-        <p className="m-0 text-sm font-normal">
-          {intro}
-          {availabilityNote ? (
-            <> {renderAvailabilityInline(availabilityNote, searchMoreUrl)}</>
-          ) : null}
-        </p>
+        <AssistantMarkdown content={intro} />
+        {availabilityNote ? (
+          <p className="m-0 text-sm font-normal">
+            {renderAvailabilityInline(availabilityNote, searchMoreUrl)}
+          </p>
+        ) : null}
       </div>
       <div className="flex flex-col gap-2.5 self-stretch">
         {flights.map((flight) => (

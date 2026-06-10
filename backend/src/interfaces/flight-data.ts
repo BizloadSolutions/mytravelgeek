@@ -4,6 +4,7 @@ export interface FlightSearchParams {
   origin: string | null;
   destination: string | null;
   departureDate: string | null;
+  departureMonth: string | null;
   returnDate: string | null;
   passengers: {
     adults: number;

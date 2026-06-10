@@ -3,7 +3,15 @@ import { ConfigService } from "../../config/config.service";
 import { GraphqlClientService } from "../common/graphql-client.service";
 import type { FlightSearchParams, TravelpayoutsPriceRow } from "./flight.types";
 
-/** Always request prices in USD (Travelpayouts `currency` argument). */
+type PricesOneWayResponse = {
+  prices_one_way: TravelpayoutsPriceRow[];
+};
+
+type PricesRoundTripResponse = {
+  prices_round_trip: TravelpayoutsPriceRow[];
+};
+
+/** All TravelPayouts flight searches use USD. */
 const FLIGHT_SEARCH_CURRENCY = "USD";
 
 const PRICES_ONE_WAY_QUERY = `
@@ -30,10 +38,6 @@ const PRICES_ONE_WAY_QUERY = `
   }
 `;
 
-type PricesOneWayResponse = {
-  prices_one_way: TravelpayoutsPriceRow[];
-};
-
 const PRICES_ROUND_TRIP_QUERY = `
   query PricesRoundTrip($params: ParamsRoundTrip!, $limit: Int!, $offset: Int!) {
     prices_round_trip(
@@ -57,10 +61,6 @@ const PRICES_ROUND_TRIP_QUERY = `
     }
   }
 `;
-
-type PricesRoundTripResponse = {
-  prices_round_trip: TravelpayoutsPriceRow[];
-};
 
 @Injectable()
 export class TravelpayoutsFlightsApi {
@@ -121,51 +121,39 @@ export class TravelpayoutsFlightsApi {
       return [];
     }
 
-    if (!params.departDate) {
-      this.logger.warn("One-way flight search requires a departure date.");
+    if (!params.departDate && !params.departMonth) {
+      this.logger.warn(
+        "One-way flight search requires departDate or departMonth.",
+      );
       return [];
     }
 
     try {
       this.logger.debug(
-        `Travelpayouts GraphQL (${FLIGHT_SEARCH_CURRENCY}): ${JSON.stringify(params)}`,
+        `Travelpayouts GraphQL (USD): ${JSON.stringify(params)}`,
       );
 
       const baseParams = {
         origin: params.origin,
         destination: params.destination,
-        no_lowcost: true,
         ...(params.tripClass ? { trip_class: params.tripClass } : {}),
         ...(typeof params.direct === "boolean"
           ? { direct: params.direct }
           : {}),
       };
 
-      // 1) Try exact-date query (works in Playground for specific days).
-      let rows = await this.fetchOneWay(token, {
+      const dateParams = params.departMonth
+        ? { depart_months: params.departMonth }
+        : { depart_dates: params.departDate };
+
+      const rows = await this.fetchOneWay(token, {
         limit: params.limit,
         offset: params.offset,
         params: {
           ...baseParams,
-          depart_dates: params.departDate,
+          ...dateParams,
         },
       });
-
-      // 2) If empty, fall back to monthly calendar query (many routes only return data this way).
-      if (!rows.length) {
-        this.logger.debug(
-          `Travelpayouts returned 0 rows for depart_dates=${params.departDate}; retrying with depart_months.`,
-        );
-
-        rows = await this.fetchOneWay(token, {
-          limit: params.limit,
-          offset: params.offset,
-          params: {
-            ...baseParams,
-            depart_months: params.departDate,
-          },
-        });
-      }
 
       this.logger.log(`Travelpayouts returned ${rows.length} flight row(s).`);
       return rows;
@@ -193,7 +181,7 @@ export class TravelpayoutsFlightsApi {
 
     try {
       this.logger.debug(
-        `Travelpayouts GraphQL (${FLIGHT_SEARCH_CURRENCY}): ${JSON.stringify(params)}`,
+        `Travelpayouts GraphQL (USD): ${JSON.stringify(params)}`,
       );
 
       const baseParams = {
@@ -201,7 +189,6 @@ export class TravelpayoutsFlightsApi {
         destination: params.destination,
         depart_date_min: params.departDate,
         return_date_max: params.returnDate,
-        no_lowcost: true,
         ...(params.tripClass ? { trip_class: params.tripClass } : {}),
         ...(typeof params.direct === "boolean"
           ? { direct: params.direct }

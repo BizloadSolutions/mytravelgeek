@@ -6,9 +6,12 @@ RULES:
 
 - Return ONLY the JSON schema below
 - Use IATA airport codes (3 letters) for origin and destination
-- Dates in YYYY-MM-DD format
+- Dates in YYYY-MM-DD format; months in YYYY-MM format
 - Relative dates (tomorrow, next Monday, "8th Jul 2026") resolved using CURRENT_DATE
-- departureDate default: CURRENT_DATE + 1 if not mentioned
+- departureDate: set only when the user names a specific calendar day
+- departureMonth: set when the user names a month without a specific day ("next month", "in July", "this month", "sometime in August"). Use YYYY-MM.
+- Never set both departureDate and departureMonth for the same query — prefer departureDate when a day is explicit
+- If neither departureDate nor departureMonth is mentioned, set departureDate to CURRENT_DATE + 1 and departureMonth to null
 - tripType: "roundtrip" if return date exists or user says "round trip/return", else "oneway"
 - cabinClass: "economy" default | "premium_economy" | "business" | "first"
 - maxStops: 0 if user says "non-stop" or "direct"
@@ -31,20 +34,23 @@ CITY → IATA (use when city name is given, not a code):
 COMMON IATA CODES: DEL DXB BOM JAI BLR HYD MAA CCU GOI BKK SIN LON PAR NYC YTO SYD BNE MEL PER ADL CBR AUH KUL TYO HKG AMS FRA LAX SFO
 
 SCHEMA:
-{"intent":"flight_search","tripType":"oneway","origin":null,"destination":null,"departureDate":null,"returnDate":null,"passengers":{"adults":1,"children":0,"infants":0},"cabinClass":"economy","preferredAirline":null,"currency":null,"maxStops":null,"maxPrice":null}
+{"intent":"flight_search","tripType":"oneway","origin":null,"destination":null,"departureDate":null,"departureMonth":null,"returnDate":null,"passengers":{"adults":1,"children":0,"infants":0},"cabinClass":"economy","preferredAirline":null,"currency":null,"maxStops":null,"maxPrice":null}
 
 EXAMPLES:
 
 Q: Find me a flight for sydney to brisbane for 8th Jul 2026
-A: {"intent":"flight_search","tripType":"oneway","origin":"SYD","destination":"BNE","departureDate":"2026-07-08","returnDate":null,"passengers":{"adults":1,"children":0,"infants":0},"cabinClass":"economy","preferredAirline":null,"currency":null,"maxStops":null,"maxPrice":null}
+A: {"intent":"flight_search","tripType":"oneway","origin":"SYD","destination":"BNE","departureDate":"2026-07-08","departureMonth":null,"returnDate":null,"passengers":{"adults":1,"children":0,"infants":0},"cabinClass":"economy","preferredAirline":null,"currency":null,"maxStops":null,"maxPrice":null}
 
 Q: Flights from Melbourne to Perth next Friday
-A: {"intent":"flight_search","tripType":"oneway","origin":"MEL","destination":"PER","departureDate":"2026-06-12","returnDate":null,"passengers":{"adults":1,"children":0,"infants":0},"cabinClass":"economy","preferredAirline":null,"currency":null,"maxStops":null,"maxPrice":null}
+A: {"intent":"flight_search","tripType":"oneway","origin":"MEL","destination":"PER","departureDate":"2026-06-12","departureMonth":null,"returnDate":null,"passengers":{"adults":1,"children":0,"infants":0},"cabinClass":"economy","preferredAirline":null,"currency":null,"maxStops":null,"maxPrice":null}
+
+Q: Find a flight for jaipur to new delhi next month
+A: {"intent":"flight_search","tripType":"oneway","origin":"JAI","destination":"DEL","departureDate":null,"departureMonth":"2026-07","returnDate":null,"passengers":{"adults":1,"children":0,"infants":0},"cabinClass":"economy","preferredAirline":null,"currency":null,"maxStops":null,"maxPrice":null}
 
 Q: Round trip Delhi to Dubai 10 June returning 20 June
-A: {"intent":"flight_search","tripType":"roundtrip","origin":"DEL","destination":"DXB","departureDate":"2026-06-10","returnDate":"2026-06-20","passengers":{"adults":1,"children":0,"infants":0},"cabinClass":"economy","preferredAirline":null,"currency":null,"maxStops":null,"maxPrice":null}
+A: {"intent":"flight_search","tripType":"roundtrip","origin":"DEL","destination":"DXB","departureDate":"2026-06-10","departureMonth":null,"returnDate":"2026-06-20","passengers":{"adults":1,"children":0,"infants":0},"cabinClass":"economy","preferredAirline":null,"currency":null,"maxStops":null,"maxPrice":null}
 
 Q: Non-stop business class Mumbai to London for 2 adults under 50000 INR
-A: {"intent":"flight_search","tripType":"oneway","origin":"BOM","destination":"LON","departureDate":"2026-06-03","returnDate":null,"passengers":{"adults":2,"children":0,"infants":0},"cabinClass":"business","preferredAirline":null,"currency":"INR","maxStops":0,"maxPrice":50000}
+A: {"intent":"flight_search","tripType":"oneway","origin":"BOM","destination":"LON","departureDate":"2026-06-03","departureMonth":null,"returnDate":null,"passengers":{"adults":2,"children":0,"infants":0},"cabinClass":"business","preferredAirline":null,"currency":"INR","maxStops":0,"maxPrice":50000}
 
 USER QUERY: {{USER_QUERY}}
