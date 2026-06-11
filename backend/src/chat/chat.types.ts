@@ -11,6 +11,7 @@ export type ChatRequest = {
 
 export type ChatIntentType =
   | "flight_search"
+  | "flight_insurance"
   | "hotel_search"
   | "esim"
   | "activities"

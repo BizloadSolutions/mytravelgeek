@@ -4,6 +4,8 @@ type AviasalesSearchInput = {
   departDate?: string;
   returnDate?: string;
   adults?: number;
+  children?: number;
+  infants?: number;
 };
 
 export function buildAviasalesSearchUrl(
@@ -17,7 +19,10 @@ export function buildAviasalesSearchUrl(
   const marker = options.marker.trim();
   const origin = input.origin?.trim().toUpperCase() ?? "";
   const destination = input.destination?.trim().toUpperCase() ?? "";
-  const adults = Math.max(1, input.adults ?? 1);
+  const adults = Math.min(9, Math.max(1, input.adults ?? 1));
+  const children = Math.min(9, Math.max(0, input.children ?? 0));
+  const infants = Math.min(9, Math.max(0, input.infants ?? 0));
+  const pax = `${adults}${children}${infants}`;
 
   let params = destination || origin || "DEL";
   if (origin && destination && input.departDate) {
@@ -34,7 +39,7 @@ export function buildAviasalesSearchUrl(
       }
     }
   }
-  params += String(adults);
+  params += pax;
 
   const url = new URL(`${base}/`);
   if (marker) url.searchParams.set("marker", marker);

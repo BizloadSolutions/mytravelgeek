@@ -37,11 +37,12 @@
     }
   };
 
-  let globalDialogsInitialized = false;
+  let clickDelegationInitialized = false;
+  let dialogBackdropsInitialized = false;
 
-  const initModalDialogs = () => {
-    if (globalDialogsInitialized) return;
-    globalDialogsInitialized = true;
+  const initModalClickDelegation = () => {
+    if (clickDelegationInitialized) return;
+    clickDelegationInitialized = true;
 
     document.addEventListener("click", (e) => {
       const openBtn = e.target.closest("[data-modal-open]");
@@ -65,7 +66,9 @@
         }
       }
     });
+  };
 
+  const bindDialogBackdrops = () => {
     document.querySelectorAll("dialog").forEach((modal) => {
       if (modal.dataset.modalBackdropBound === "true") return;
       modal.dataset.modalBackdropBound = "true";
@@ -89,6 +92,14 @@
         }
       });
     });
+  };
+
+  /** Safe on DOMContentLoaded — only registers [data-modal-open] clicks. */
+  const initModalDialogs = () => {
+    initModalClickDelegation();
+    if (dialogBackdropsInitialized) return;
+    dialogBackdropsInitialized = true;
+    bindDialogBackdrops();
   };
 
   const initFlightStopsToggles = (root) => {
@@ -641,7 +652,7 @@
   window.closeTravelGeekModal = closeModal;
 
   const boot = () => {
-    initModalDialogs();
+    initModalClickDelegation();
   };
 
   if (document.readyState === "loading") {

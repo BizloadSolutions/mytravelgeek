@@ -6,6 +6,8 @@ export interface FlightSearchParams {
   departureDate: string | null;
   departureMonth: string | null;
   returnDate: string | null;
+  /** YYYY-MM when return month is named without a specific day. */
+  returnMonth: string | null;
   passengers: {
     adults: number;
     children: number;

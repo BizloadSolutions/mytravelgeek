@@ -12,7 +12,7 @@ function loadEnvFiles() {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const dotenv = require("dotenv") as typeof import("dotenv");
   dotenv.config({ path: resolve(cwd, ".env") });
-  dotenv.config({ path: resolve(cwd, "../.env") });
+  // dotenv.config({ path: resolve(cwd, "../.env") });
 }
 
 export class Keys {
@@ -31,6 +31,7 @@ export class Keys {
   GETRENTACAR_URL?: string;
   KIWI_TAXI_URL?: string;
   YESIM_URL?: string;
+  COMPENSAIR_URL?: string;
   PORT!: string;
   BACKEND_URL?: string;
 
@@ -60,6 +61,7 @@ export class Keys {
     this.GETRENTACAR_URL = readEnv("GETRENTACAR_URL");
     this.KIWI_TAXI_URL = readEnv("KIWI_TAXI_URL");
     this.YESIM_URL = readEnv("YESIM_URL");
+    this.COMPENSAIR_URL = readEnv("COMPENSAIR_URL");
   }
 }
 

@@ -13,9 +13,9 @@ import type {
 import { TravelpayoutsFlightsApi } from "./travelpayouts-flights.api";
 import { getDestinationCityName } from "../../helper/airport";
 import { buildAviasalesSearchUrl } from "../../helper/aviasales-url";
+import { applySearchContextToTicketLink } from "../../helper/ticket-link";
 
 const FLIGHT_CURRENCY = "USD";
-const STATIC_STOPS = "Non-stop";
 
 @Injectable()
 export class FlightsService {
@@ -41,7 +41,7 @@ export class FlightsService {
     const offset = params.offset ?? 0;
 
     // Round-trip: depart_date_min / return_date_max window search.
-    if (params.returnDate && params.departDate) {
+    if (params.isReturnFlight && params.returnDate && params.departDate) {
       const rows = await this.travelpayouts.searchRoundTrip({
         ...params,
         limit,
@@ -57,17 +57,26 @@ export class FlightsService {
       const travelDateLabel = this.formatTravelDateLabelFromYmd(
         params.departDate,
       );
-      const passengersLabel =
-        params.adults === 1 ? "1 adult" : `${params.adults} adults`;
+      const returnTravelDateLabel = this.formatTravelDateLabelFromYmd(
+        params.returnDate,
+      );
+      const passengersLabel = this.formatPassengersLabel(params);
 
       const payload: FlightsChatPayload = {
-        routeTitle: `Flights to ${getDestinationCityName(params.destination)}`,
-        intro: this.buildIntro(params, passengersLabel, travelDateLabel),
+        routeTitle: `Return flights to ${getDestinationCityName(params.destination)}`,
+        intro: this.buildRoundTripIntro(
+          params,
+          passengersLabel,
+          travelDateLabel,
+          returnTravelDateLabel,
+        ),
         cabinClass: "Economy",
         passengersLabel,
         originCode: params.origin,
         destinationCode: params.destination,
-        travelDateLabel,
+        travelDateLabel: `${travelDateLabel} – ${returnTravelDateLabel}`,
+        returnTravelDateLabel,
+        isRoundTrip: true,
         flights,
         pagination: {
           hasMore,
@@ -117,8 +126,7 @@ export class FlightsService {
     const searchContext = this.toSearchContext(params);
     const { travelDateLabel, datePreposition } =
       this.resolveTravelDateLabel(params);
-    const passengersLabel =
-      params.adults === 1 ? "1 adult" : `${params.adults} adults`;
+    const passengersLabel = this.formatPassengersLabel(params);
 
     const flightCards = flights.map((row, index) =>
       this.mapRowToCard(row, params, index),
@@ -132,6 +140,7 @@ export class FlightsService {
         travelDateLabel,
         datePreposition,
       ),
+      isRoundTrip: false,
       availabilityNote: usedFallback
         ? `No flights on ${travelDateLabel}; showing the best prices in that month instead.`
         : undefined,
@@ -186,8 +195,7 @@ export class FlightsService {
 
     const { travelDateLabel, datePreposition } =
       this.resolveTravelDateLabel(params);
-    const passengersLabel =
-      params.adults === 1 ? "1 adult" : `${params.adults} adults`;
+    const passengersLabel = this.formatPassengersLabel(params);
 
     const payload: FlightsChatPayload = {
       routeTitle: `Flights to ${getDestinationCityName(params.destination)}`,
@@ -208,6 +216,7 @@ export class FlightsService {
       originCode: params.origin,
       destinationCode: params.destination,
       travelDateLabel,
+      isRoundTrip: false,
       flights,
       pagination: {
         hasMore,
@@ -230,6 +239,8 @@ export class FlightsService {
         departDate: params.departDate,
         returnDate: params.returnDate,
         adults: params.adults,
+        children: params.children,
+        infants: params.infants,
       },
       { marker },
     );
@@ -256,10 +267,33 @@ export class FlightsService {
       destination: params.destination,
       departDate: params.departDate,
       departMonth: params.departMonth,
+      returnDate: params.returnDate,
+      isReturnFlight: params.isReturnFlight,
       adults: params.adults,
+      children: params.children,
+      infants: params.infants,
       direct: params.direct,
       tripClass: params.tripClass,
     };
+  }
+
+  private formatPassengersLabel(params: FlightSearchParams): string {
+    const parts: string[] = [];
+    const adults = params.adults ?? 1;
+    const children = params.children ?? 0;
+    const infants = params.infants ?? 0;
+
+    if (adults) {
+      parts.push(adults === 1 ? "1 adult" : `${adults} adults`);
+    }
+    if (children) {
+      parts.push(children === 1 ? "1 child" : `${children} children`);
+    }
+    if (infants) {
+      parts.push(infants === 1 ? "1 infant" : `${infants} infants`);
+    }
+
+    return parts.length ? parts.join(", ") : "1 adult";
   }
 
   private resolveTravelDateLabel(params: FlightSearchParams) {
@@ -307,10 +341,13 @@ export class FlightsService {
     const destCity = destCode;
     const routeCode = `${originCode} > ${destCode}`;
     const travelDate = this.formatCardDate(departureAt);
-    const returnTravelDate = row.return_at
-      ? this.formatCardDate(row.return_at)
+    const returnAt = row.return_at ?? params.returnDate;
+    const returnTravelDate = returnAt
+      ? this.formatCardDate(
+          returnAt.includes("T") ? returnAt : `${returnAt}T12:00:00`,
+        )
       : undefined;
-    const reserveUrl = this.buildReserveUrl(row.ticket_link);
+    const reserveUrl = this.buildReserveUrl(row.ticket_link, params);
 
     const flightNumber = globalIndex + 1;
     const label =
@@ -329,7 +366,7 @@ export class FlightsService {
       badgeVariant = "cheapest";
     }
 
-    const stopsLabel = STATIC_STOPS;
+    const stopsLabel = this.formatStopsLabel(row.number_of_changes);
     const offset = params.offset ?? 0;
 
     // Get airline information
@@ -361,15 +398,41 @@ export class FlightsService {
     };
   }
 
-  private buildReserveUrl(ticketLink?: string) {
+  private buildReserveUrl(
+    ticketLink: string | undefined,
+    params: FlightSearchParams,
+  ) {
     const base = this.config.keys.AVIASALES_SEARCH_BASE.replace(/\/$/, "");
 
     if (!ticketLink?.trim()) {
       return `${base}/`;
     }
 
-    const path = ticketLink.startsWith("/") ? ticketLink : `/${ticketLink}`;
+    const enriched = applySearchContextToTicketLink(ticketLink, {
+      passengers: {
+        adults: params.adults ?? 1,
+        children: params.children ?? 0,
+        infants: params.infants ?? 0,
+      },
+      returnDate: params.isReturnFlight ? params.returnDate : undefined,
+      forceRoundTrip: params.isReturnFlight,
+    });
+
+    const path = enriched?.startsWith("/")
+      ? enriched
+      : `/${enriched ?? ticketLink}`;
     return `${base}${path}`;
+  }
+
+  private buildRoundTripIntro(
+    params: FlightSearchParams,
+    passengersLabel: string,
+    departLabel: string,
+    returnLabel: string,
+  ) {
+    const destinationCity = getDestinationCityName(params.destination);
+    const originCity = getDestinationCityName(params.origin);
+    return `Great round-trip Economy options for ${passengersLabel} from ${originCity} to ${destinationCity}, departing ${departLabel} and returning ${returnLabel}. Pick the itinerary that works best for you.`;
   }
 
   private buildIntro(
@@ -431,6 +494,15 @@ export class FlightsService {
             : "th";
     const month = date.toLocaleDateString("en-US", { month: "long" });
     return `${month} ${day}${suffix}`;
+  }
+
+  private formatStopsLabel(numberOfChanges?: number): string {
+    if (numberOfChanges === 0) return "Non-stop";
+    if (numberOfChanges === 1) return "1 stop";
+    if (typeof numberOfChanges === "number" && numberOfChanges > 1) {
+      return `${numberOfChanges} stops`;
+    }
+    return "Stops vary";
   }
 
   private formatDuration(minutes: number) {

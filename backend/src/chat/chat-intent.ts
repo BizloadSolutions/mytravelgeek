@@ -4,6 +4,8 @@ import {
   isAirportTransferServiceRequest,
   isCarRentalServiceRequest,
   isEsimServiceRequest,
+  isFlightBookingRequest,
+  isFlightInsuranceServiceRequest,
   isFlightServiceRequest,
   isHotelServiceRequest,
 } from "../helper/travel-affiliates";
@@ -135,6 +137,18 @@ export function classifyChatIntentType(
   const lastUser = lastUserMessage(messages).trim();
   const text = lastUser.toLowerCase();
   const fullText = combinedUserText(messages).toLowerCase();
+
+  if (
+    isFlightInsuranceServiceRequest(lastUser) &&
+    !isFlightBookingRequest(lastUser)
+  ) {
+    return {
+      intent: "flight_insurance",
+      confidence: "high",
+      reason: "flight delay / compensation / insurance",
+      lastUserText: lastUser,
+    };
+  }
 
   if (isFlightServiceRequest(lastUser)) {
     const routePresent = /\b[A-Z]{3}\s*(?:to|->|→|–|-)\s*[A-Z]{3}\b/i.test(

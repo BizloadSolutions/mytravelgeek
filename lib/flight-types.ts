@@ -40,7 +40,11 @@ export type FlightSearchContext = {
   destination: string;
   departMonth?: string;
   departDate?: string;
+  returnDate?: string;
+  isReturnFlight?: boolean;
   adults: number;
+  children?: number;
+  infants?: number;
 };
 
 export type FlightsPagination = {
@@ -48,6 +52,12 @@ export type FlightsPagination = {
   offset: number;
   limit: number;
   search: FlightSearchContext;
+};
+
+export type FlightCompensationLink = {
+  id: string;
+  label: string;
+  url: string;
 };
 
 export type FlightsChatPayload = {
@@ -59,8 +69,11 @@ export type FlightsChatPayload = {
   originCode?: string;
   destinationCode?: string;
   travelDateLabel?: string;
+  returnTravelDateLabel?: string;
+  isRoundTrip?: boolean;
   flights: FlightOptionCard[];
   searchMoreUrl?: string;
+  compensationLink?: FlightCompensationLink;
   pagination?: FlightsPagination;
 };
 

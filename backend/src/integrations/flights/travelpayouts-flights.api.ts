@@ -34,6 +34,7 @@ const PRICES_ONE_WAY_QUERY = `
       duration
       main_airline
       provider
+      number_of_changes
     }
   }
 `;
@@ -58,6 +59,7 @@ const PRICES_ROUND_TRIP_QUERY = `
       duration
       main_airline
       provider
+      number_of_changes
     }
   }
 `;

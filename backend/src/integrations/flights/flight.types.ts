@@ -4,7 +4,10 @@ export type FlightSearchContext = {
   departDate?: string;
   departMonth?: string;
   returnDate?: string;
+  isReturnFlight?: boolean;
   adults: number;
+  children?: number;
+  infants?: number;
   direct?: boolean;
   tripClass?: string;
 };
@@ -35,6 +38,7 @@ export type TravelpayoutsPriceRow = {
   duration?: number;
   main_airline?: string;
   provider?: string;
+  number_of_changes?: number;
 };
 
 export type FlightStopSegment = {
@@ -73,6 +77,12 @@ export type FlightOptionCard = {
   stops?: FlightStopSegment[];
 };
 
+export type FlightCompensationLink = {
+  id: string;
+  label: string;
+  url: string;
+};
+
 export type FlightsChatPayload = {
   routeTitle?: string;
   intro: string;
@@ -83,8 +93,13 @@ export type FlightsChatPayload = {
   originCode: string;
   destinationCode: string;
   travelDateLabel: string;
+  /** Formatted return date for round-trip searches (header/intro). */
+  returnTravelDateLabel?: string;
+  isRoundTrip?: boolean;
   flights: FlightOptionCard[];
   searchMoreUrl?: string;
+  /** Compensair — check eligibility for delay/cancellation compensation. */
+  compensationLink?: FlightCompensationLink;
   pagination?: FlightsPagination;
 };
 

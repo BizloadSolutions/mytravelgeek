@@ -111,6 +111,10 @@ export class ChatService {
 
     if (flightsPayload?.flights?.length) {
       flightsPayload.intro = finalReply;
+      const compensairLink = travelLinks.find((l) => l.id === "compensair");
+      if (compensairLink) {
+        flightsPayload.compensationLink = compensairLink;
+      }
       responseBody.flights = flightsPayload;
       this.logger.log(
         `📤 Response includes ${flightsPayload.flights.length} flights`,
@@ -197,6 +201,7 @@ export class ChatService {
 
     const marker = this.config.keys.AVIASALES_MARKER?.trim();
     const urls = {
+      compensair: this.config.keys.COMPENSAIR_URL,
       kkday: this.config.keys.KKDAY_URL,
       wegotrip: this.config.keys.WEGOTRIP_URL,
       getrentacar: this.config.keys.GETRENTACAR_URL,
@@ -218,6 +223,8 @@ export class ChatService {
     switch (intent) {
       case "flight_search":
         return this.buildFlightPrompt(hasLiveFlights);
+      case "flight_insurance":
+        return this.buildFlightInsurancePrompt();
       case "hotel_search":
         return this.buildHotelPrompt();
       case "esim":
@@ -269,6 +276,8 @@ export class ChatService {
         return hasFlights
           ? this.anthropic.tokenLimit(keys.ANTHROPIC_MAX_TOKENS_FLIGHT, 200)
           : this.anthropic.tokenLimit(keys.ANTHROPIC_MAX_TOKENS_BRIEF, 350);
+      case "flight_insurance":
+        return this.anthropic.tokenLimit(keys.ANTHROPIC_MAX_TOKENS_BRIEF, 450);
       case "hotel_search":
       case "esim":
       case "activities":
@@ -299,6 +308,10 @@ export class ChatService {
       return "Share your origin and destination (e.g. JAI to DEL) and travel date — I’ll pull live flight prices for you.";
     }
 
+    if (intent === "flight_insurance") {
+      return "If your flight was delayed, cancelled, or you were denied boarding, you may be able to claim compensation. Share your route, date, and airline — and use the compensation check below to see what you may be owed.";
+    }
+
     if (/^(hi|hello|hey|hola|namaste|howdy)\b/.test(text)) {
       return [
         "Hey! I’m your travel genius — flights, hotels, itineraries, and local tips.",
@@ -322,7 +335,7 @@ export class ChatService {
       "MODE: FLIGHT SEARCH / BOOKING",
       "The platform runs a live flight search via TravelPayouts from the user's message (origin, destination, date, passengers, cabin).",
       `FLAG: hasLiveResults = ${hasLiveResults}. This MUST guide your response.`,
-      "Relevant booking links (Aviasales, KKDay) are shown in the UI — do NOT paste URLs in your reply.",
+      "Relevant booking links (Aviasales, flight compensation check, KKDay) are shown in the UI — do NOT paste URLs in your reply.",
     ];
 
     if (hasLiveResults) {
@@ -345,6 +358,24 @@ export class ChatService {
     }
 
     return lines.join("\n");
+  }
+
+  private buildFlightInsurancePrompt() {
+    return [
+      "You are My Travel Geek — a friendly personal travel genius.",
+      "Sound human, warm, simple, and PROFESSIONAL. Never mention AI, models, or systems.",
+      "Always respond in English. Only use another language if the user explicitly asks",
+      "Never use slang, casual language, or abusive words. Always be respectful and courteous.",
+      "",
+      TRAVEL_ASSISTANT_RULES,
+      "",
+      "MODE: FLIGHT DELAY / CANCELLATION COMPENSATION",
+      "The user may be asking about flight insurance or compensation for a disrupted flight.",
+      "Explain briefly: under EU, Turkey, and Canada rules, passengers may claim up to €600 for long delays, cancellations, denied boarding, or missed connections (typically within the last 6 years).",
+      "TravelGeek does NOT process claims — a compensation calculator link is shown in the UI. Do NOT paste URLs.",
+      "Ask for useful details if missing: origin, destination, departure date, airline, and what happened (delay, cancellation, denied boarding, missed connection).",
+      "80–120 words. Plain paragraphs or short bullets. Be reassuring and practical.",
+    ].join("\n");
   }
 
   private buildHotelPrompt() {

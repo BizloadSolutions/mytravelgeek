@@ -11,6 +11,7 @@ export const DEFAULT_AVIASALES_MARKER =
 
 export type TravelServiceType =
   | "flights"
+  | "flight_insurance"
   | "hotels"
   | "activities"
   | "car_rental"
@@ -25,6 +26,7 @@ export type TravelLink = {
 
 export type TravelAffiliateUrls = {
   aviasalesMarker: string;
+  compensair: string;
   kkday: string;
   wegotrip: string;
   getrentacar: string;
@@ -32,8 +34,12 @@ export type TravelAffiliateUrls = {
   yesim: string;
 };
 
+/** Compensair — EU flight delay/cancellation compensation (up to €600). */
+export const DEFAULT_COMPENSAIR_URL = "https://compensair.tpm.lv/naYYi34N";
+
 export const DEFAULT_TRAVEL_AFFILIATE_URLS: TravelAffiliateUrls = {
   aviasalesMarker: `https://www.aviasales.com/?marker=${DEFAULT_AVIASALES_MARKER}`,
+  compensair: DEFAULT_COMPENSAIR_URL,
   kkday: "https://kkday.tpm.lv/5WnQK1ZT",
   wegotrip: "https://wegotrip.com",
   getrentacar: "https://getrentacar.com",
@@ -52,6 +58,7 @@ export function detectTravelServices(message: string): TravelServiceType[] {
   const services: TravelServiceType[] = [];
 
   if (isFlightServiceRequest(text)) services.push("flights");
+  if (isFlightInsuranceServiceRequest(text)) services.push("flight_insurance");
   if (isHotelServiceRequest(text)) services.push("hotels");
   if (isActivitiesServiceRequest(text)) services.push("activities");
   if (isCarRentalServiceRequest(text)) services.push("car_rental");
@@ -67,7 +74,9 @@ export function travelServicesForIntent(
 ): TravelServiceType[] {
   switch (intent) {
     case "flight_search":
-      return ["flights"];
+      return ["flights", "flight_insurance"];
+    case "flight_insurance":
+      return ["flight_insurance"];
     case "hotel_search":
       return ["hotels"];
     case "esim":
@@ -91,15 +100,90 @@ export function resolveTravelServices(
   message: string,
   intent: ChatIntentType,
 ): TravelServiceType[] {
-  return [
+  const services = [
     ...new Set([
       ...detectTravelServices(message),
       ...travelServicesForIntent(intent),
     ]),
   ];
+
+  if (intent === "flight_insurance") {
+    return services.filter((s) => s === "flight_insurance");
+  }
+
+  return services;
+}
+
+/** User wants to search or book flights (not a disruption/compensation question). */
+export function isFlightBookingRequest(message: string): boolean {
+  const text = message.toLowerCase();
+  if (/\b[A-Z]{3}\s*(?:to|->|→|–|-)\s*[A-Z]{3}\b/i.test(message)) return true;
+  if (/\bfrom\s+\w+.*\bto\s+\w+\b/i.test(text)) return true;
+  return /\b(find|search|book|show\s+me|looking\s+for|need\s+(a\s+)?flight|cheapest|round[\s-]?trip|return\s+flight|flights?\s+from|flights?\s+to|fly\s+from|fly\s+to|airfare|one[- ]way)\b/i.test(
+    text,
+  );
+}
+
+/**
+ * Compensair — claim compensation for delayed/cancelled flights, missed
+ * connections, or denied boarding (EU, Turkey, Canada rules).
+ */
+export function isFlightInsuranceServiceRequest(message: string): boolean {
+  const text = message.toLowerCase();
+
+  if (
+    /\b(flight\s+insurance|travel\s+insurance|trip\s+insurance|flight\s+protection|compensair|eu\s*261|up\s+to\s+€?\s*600)\b/i.test(
+      text,
+    )
+  ) {
+    return true;
+  }
+
+  if (
+    /\b(flight\s+was\s+(cancelled|canceled|delayed)|flight\s+(got\s+)?(cancelled|canceled|delayed)|my\s+flight\s+was)\b/i.test(
+      text,
+    )
+  ) {
+    return true;
+  }
+
+  if (
+    /\b(cancelled|canceled|delayed|denied\s+boarding|missed\s+connection)\b/i.test(
+      text,
+    ) &&
+    /\b(flight|airline|plane|boarding)\b/i.test(text)
+  ) {
+    return true;
+  }
+
+  if (
+    /\b(compensation|claim|refund|owed|entitled)\b/i.test(text) &&
+    /\b(flight|airline|cancelled|canceled|delayed|boarding)\b/i.test(text)
+  ) {
+    return true;
+  }
+
+  return /\b(flight\s+compensation|compensation\s+for|delayed\s+flight|cancelled\s+flight|canceled\s+flight|denied\s+boarding|missed\s+connection|claim\s+compensation)\b/i.test(
+    text,
+  );
+}
+
+export function buildCompensairLink(urls: TravelAffiliateUrls): TravelLink {
+  return {
+    id: "compensair",
+    label: "Check flight compensation",
+    url: urls.compensair,
+  };
 }
 
 export function isFlightServiceRequest(message: string): boolean {
+  if (
+    isFlightInsuranceServiceRequest(message) &&
+    !isFlightBookingRequest(message)
+  ) {
+    return false;
+  }
+
   const text = message.toLowerCase();
   if (/\b[A-Z]{3}\s*(?:to|->|→|–|-)\s*[A-Z]{3}\b/i.test(message)) return true;
   if (/\bfrom\s+\w+.*\bto\s+\w+\b/i.test(text)) return true;
@@ -221,6 +305,7 @@ export function buildTravelLinks(
     push(
       buildAviasalesLink(urls, options.flightParams, options.aviasalesMarker),
     );
+    push(buildCompensairLink(urls));
     if (options.includeOptionalKkdayForFlights !== false) {
       push({
         id: "kkday",
@@ -228,6 +313,10 @@ export function buildTravelLinks(
         url: urls.kkday,
       });
     }
+  }
+
+  if (services.includes("flight_insurance") && !services.includes("flights")) {
+    push(buildCompensairLink(urls));
   }
 
   if (services.includes("hotels")) {
