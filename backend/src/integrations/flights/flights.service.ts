@@ -323,7 +323,23 @@ export class FlightsService {
   ): FlightOptionCard {
     const departureAt = row.departure_at ?? new Date().toISOString();
     const durationMin = row.duration;
-    const depDate = new Date(departureAt);
+    
+    // Parse departureAt as local date-time parts to avoid timezone shift
+    let depDate: Date;
+    const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/.exec(departureAt);
+    if (match) {
+      depDate = new Date(
+        Number(match[1]),
+        Number(match[2]) - 1,
+        Number(match[3]),
+        Number(match[4]),
+        Number(match[5]),
+        Number(match[6])
+      );
+    } else {
+      depDate = new Date(departureAt);
+    }
+
     const arrivalDate =
       typeof durationMin === "number"
         ? new Date(depDate.getTime() + durationMin * 60000)
@@ -456,6 +472,16 @@ export class FlightsService {
 
   private formatCardDate(iso?: string) {
     if (!iso) return "Dates vary";
+    const match = iso.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (match) {
+      const [, y, m, d] = match;
+      const date = new Date(Number(y), Number(m) - 1, Number(d));
+      return date.toLocaleDateString("en-US", {
+        day: "numeric",
+        month: "short",
+        year: "2-digit",
+      });
+    }
     const date = new Date(iso);
     return date.toLocaleDateString("en-US", {
       day: "numeric",
@@ -467,9 +493,18 @@ export class FlightsService {
   private formatTravelDateLabelFromYmd(ymd: string) {
     const [year, month, day] = ymd.split("-").map(Number);
     if (!year || !month || !day) return "";
-    return this.formatTravelDateLabel(
-      new Date(year, month - 1, day).toISOString(),
-    );
+    const date = new Date(year, month - 1, day);
+    const d = date.getDate();
+    const suffix =
+      d % 10 === 1 && d !== 11
+        ? "st"
+        : d % 10 === 2 && d !== 12
+          ? "nd"
+          : d % 10 === 3 && d !== 13
+            ? "rd"
+            : "th";
+    const monthLabel = date.toLocaleDateString("en-US", { month: "long" });
+    return `${monthLabel} ${d}${suffix}`;
   }
 
   private formatTravelMonthLabelFromYmd(ymd: string) {
