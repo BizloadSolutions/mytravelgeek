@@ -1,6 +1,7 @@
-allowBuilds:
-  sharp: true
-  unrs-resolver: true
+packages:
+  - '.'
+  - 'backend'
+
 ignoredBuiltDependencies:
   - sharp
   - unrs-resolver
