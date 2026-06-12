@@ -1,4 +1,14 @@
 import type { ChatIntentType, ChatMessage } from "./chat.types";
+import {
+  isActivitiesServiceRequest,
+  isAirportTransferServiceRequest,
+  isCarRentalServiceRequest,
+  isEsimServiceRequest,
+  isFlightBookingRequest,
+  isFlightInsuranceServiceRequest,
+  isFlightServiceRequest,
+  isHotelServiceRequest,
+} from "../helper/travel-affiliates";
 
 export type ClassifiedChatIntentType = {
   intent: ChatIntentType;
@@ -19,25 +29,9 @@ function combinedUserText(messages: ChatMessage[]) {
     .join("\n");
 }
 
+/** @deprecated Use isFlightServiceRequest from travel-affiliates */
 export function isFlightSearchRequest(message: string): boolean {
-  // Keep this classifier consistent with the rest of this file:
-  // it should work on the user's natural language (last message), not the raw message array.
-  const text = message.toLowerCase();
-
-  // Strong "route" patterns (IATA or "from X to Y") imply a flight query even if keyword is missing.
-  if (/\b[A-Z]{3}\s*(?:to|->|→|–|-)\s*[A-Z]{3}\b/i.test(message)) return true;
-  if (/\bfrom\s+\w+.*\bto\s+\w+\b/i.test(text)) return true;
-
-  // General flight keywords
-  return /\b(flight|flights|fly|flying|airfare|airline|airways|ticket|book\s+a\s+flight|cheapest\s+flight|one[- ]way|round\s*trip|cabin\s+class|business\s+class|economy\s+class|first\s+class|non[- ]stop|nonstop|direct\s+flight|layover|stopover|departure)\b/i.test(
-    text,
-  );
-}
-
-function isHotelRequest(text: string, fullText: string) {
-  const hotelKw =
-    /\b(hotel|hotels|hostel|hostels|resort|resorts|accommodation|accommodations|stay|staying|lodging|room|rooms|airbnb|vacation\s+rental|book\s+a\s+room|where\s+to\s+stay|check[- ]?in|check[- ]?out)\b/i;
-  return hotelKw.test(text) || hotelKw.test(fullText);
+  return isFlightServiceRequest(message);
 }
 
 function isDetailedItineraryRequest(text: string, fullText: string) {
@@ -122,23 +116,20 @@ function isTripPlanRequest(text: string, fullText: string) {
 function isOutOfScopeNonTravel(text: string, fullText: string) {
   const t = `${text}\n${fullText}`.toLowerCase();
 
-  // Positive travel signals
   const travelKw =
-    /\b(travel|trip|vacation|holiday|tour|itinerary|hotel|hostel|resort|flight|flights|airfare|airport|visa|passport|restaurant|bar|cafe|food|things\s+to\s+do|attractions|sightseeing|local\s+customs|weather|safety|best\s+time\s+to\s+visit)\b/i;
+    /\b(travel|trip|vacation|holiday|tour|itinerary|hotel|hostel|resort|flight|flights|airfare|airport|visa|passport|restaurant|bar|cafe|food|things\s+to\s+do|attractions|sightseeing|local\s+customs|weather|safety|best\s+time\s+to\s+visit|e-?sim|sim\s+card)\b/i;
   const hasTravel = travelKw.test(t);
   if (hasTravel) return false;
 
-  // Very common non-travel asks
   const nonTravelKw =
     /\b(code|coding|programming|bug|error|stack\s*trace|typescript|javascript|python|java|react|nestjs|database|sql|mongodb|docker|kubernetes|linux|windows|macos|resume|cv|cover\s+letter|math|physics|chemistry|stock|crypto|trading|investment|relationship|girlfriend|boyfriend|medical|diagnosis|lawyer|legal)\b/i;
 
-  // If user is asking for something clearly unrelated and we have no travel signals, refuse.
   return nonTravelKw.test(t);
 }
 
 /**
- * Classify the user's goal from the full conversation (not only the last line).
- * Priority: flight → hotel → itinerary → checklist → place info → trip plan → general
+ * Classify the user's goal from the latest message.
+ * Earlier turns are not used for flight/hotel/eSIM/etc. so follow-ups stay on-topic.
  */
 export function classifyChatIntentType(
   messages: ChatMessage[],
@@ -147,7 +138,19 @@ export function classifyChatIntentType(
   const text = lastUser.toLowerCase();
   const fullText = combinedUserText(messages).toLowerCase();
 
-  if (isFlightSearchRequest(lastUser) || isFlightSearchRequest(fullText)) {
+  if (
+    isFlightInsuranceServiceRequest(lastUser) &&
+    !isFlightBookingRequest(lastUser)
+  ) {
+    return {
+      intent: "flight_insurance",
+      confidence: "high",
+      reason: "flight delay / compensation / insurance",
+      lastUserText: lastUser,
+    };
+  }
+
+  if (isFlightServiceRequest(lastUser)) {
     const routePresent = /\b[A-Z]{3}\s*(?:to|->|→|–|-)\s*[A-Z]{3}\b/i.test(
       lastUser,
     );
@@ -161,11 +164,47 @@ export function classifyChatIntentType(
     };
   }
 
-  if (isHotelRequest(text, fullText)) {
+  if (isEsimServiceRequest(lastUser)) {
+    return {
+      intent: "esim",
+      confidence: "high",
+      reason: "eSIM / mobile data request",
+      lastUserText: lastUser,
+    };
+  }
+
+  if (isHotelServiceRequest(lastUser)) {
     return {
       intent: "hotel_search",
       confidence: "high",
       reason: "hotel / stay search",
+      lastUserText: lastUser,
+    };
+  }
+
+  if (isCarRentalServiceRequest(lastUser)) {
+    return {
+      intent: "car_rental",
+      confidence: "high",
+      reason: "car / vehicle rental",
+      lastUserText: lastUser,
+    };
+  }
+
+  if (isAirportTransferServiceRequest(lastUser)) {
+    return {
+      intent: "airport_transfer",
+      confidence: "high",
+      reason: "airport / hotel transfer",
+      lastUserText: lastUser,
+    };
+  }
+
+  if (isActivitiesServiceRequest(lastUser)) {
+    return {
+      intent: "activities",
+      confidence: "high",
+      reason: "tours / activities / attractions",
       lastUserText: lastUser,
     };
   }

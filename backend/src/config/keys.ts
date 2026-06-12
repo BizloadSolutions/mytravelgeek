@@ -12,7 +12,7 @@ function loadEnvFiles() {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const dotenv = require("dotenv") as typeof import("dotenv");
   dotenv.config({ path: resolve(cwd, ".env") });
-  dotenv.config({ path: resolve(cwd, "../.env") });
+  // dotenv.config({ path: resolve(cwd, "../.env") });
 }
 
 export class Keys {
@@ -25,6 +25,13 @@ export class Keys {
   TRAVELPAYOUT_ACCESS_TOKEN?: string;
   TRAVELPAYOUTS_GRAPHQL_URL!: string;
   AVIASALES_SEARCH_BASE!: string;
+  AVIASALES_MARKER?: string;
+  KKDAY_URL?: string;
+  WEGOTRIP_URL?: string;
+  GETRENTACAR_URL?: string;
+  KIWI_TAXI_URL?: string;
+  YESIM_URL?: string;
+  COMPENSAIR_URL?: string;
   PORT!: string;
   BACKEND_URL?: string;
 
@@ -48,6 +55,13 @@ export class Keys {
     this.TRAVELPAYOUT_ACCESS_TOKEN = readEnv("TRAVELPAYOUT_ACCESS_TOKEN");
     this.TRAVELPAYOUTS_GRAPHQL_URL = readEnv("TRAVELPAYOUTS_GRAPHQL_URL") ?? "";
     this.AVIASALES_SEARCH_BASE = readEnv("AVIASALES_SEARCH_BASE") ?? "";
+    this.AVIASALES_MARKER = readEnv("AVIASALES_MARKER");
+    this.KKDAY_URL = readEnv("KKDAY_URL");
+    this.WEGOTRIP_URL = readEnv("WEGOTRIP_URL");
+    this.GETRENTACAR_URL = readEnv("GETRENTACAR_URL");
+    this.KIWI_TAXI_URL = readEnv("KIWI_TAXI_URL");
+    this.YESIM_URL = readEnv("YESIM_URL");
+    this.COMPENSAIR_URL = readEnv("COMPENSAIR_URL");
   }
 }
 

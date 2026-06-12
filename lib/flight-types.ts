@@ -20,6 +20,7 @@ export type FlightOptionCard = {
   airlineLogoUrl?: string;
   routeCode: string;
   travelDate: string;
+  returnTravelDate?: string;
   departureTime: string;
   /** Arrival time, derived from departure + duration. */
   arrivalTime: string;
@@ -37,10 +38,13 @@ export type FlightOptionCard = {
 export type FlightSearchContext = {
   origin: string;
   destination: string;
-  departMonth: string;
+  departMonth?: string;
   departDate?: string;
+  returnDate?: string;
+  isReturnFlight?: boolean;
   adults: number;
-  noLowcost: boolean;
+  children?: number;
+  infants?: number;
 };
 
 export type FlightsPagination = {
@@ -48,6 +52,12 @@ export type FlightsPagination = {
   offset: number;
   limit: number;
   search: FlightSearchContext;
+};
+
+export type FlightCompensationLink = {
+  id: string;
+  label: string;
+  url: string;
 };
 
 export type FlightsChatPayload = {
@@ -59,7 +69,11 @@ export type FlightsChatPayload = {
   originCode?: string;
   destinationCode?: string;
   travelDateLabel?: string;
+  returnTravelDateLabel?: string;
+  isRoundTrip?: boolean;
   flights: FlightOptionCard[];
+  searchMoreUrl?: string;
+  compensationLink?: FlightCompensationLink;
   pagination?: FlightsPagination;
 };
 

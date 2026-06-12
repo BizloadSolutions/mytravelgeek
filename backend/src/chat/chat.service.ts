@@ -4,6 +4,13 @@ import { ConfigService } from "../config/config.service";
 import { buildFlightSearchParams } from "../integrations/flights/flight-intent";
 import type { FlightsChatPayload } from "../integrations/flights/flight.types";
 import { FlightsService } from "../integrations/flights/flights.service";
+import type { FlightSearchParams } from "../integrations/flights/flight.types";
+import {
+  buildTravelLinks,
+  resolveTravelServices,
+  TRAVEL_ASSISTANT_RULES,
+  type TravelLink,
+} from "../helper/travel-affiliates";
 import type {
   ChatIntentType,
   ChatMessage,
@@ -32,9 +39,17 @@ export class ChatService {
     }
 
     const classified = classifyChatIntentType(messages);
+    const lastUserText = classified.lastUserText;
+    const travelServices = resolveTravelServices(
+      lastUserText,
+      classified.intent,
+    );
     this.logger.log(
       `Chat intent: ${classified.intent} (${classified.confidence}) — ${classified.reason}`,
     );
+    if (travelServices.length) {
+      this.logger.debug(`Travel services: ${travelServices.join(", ")}`);
+    }
 
     if (classified.intent === "out_of_scope") {
       return {
@@ -44,13 +59,16 @@ export class ChatService {
     }
 
     let flightsPayload: FlightsChatPayload | null = null;
+    let flightSearchParams: FlightSearchParams | null = null;
 
     if (classified.intent === "flight_search") {
       this.logger.debug("Attempting flight search...");
-      flightsPayload = await this.runFlightSearch(messages);
-      if (flightsPayload) {
+      const searchResult = await this.runFlightSearch(messages);
+      flightsPayload = searchResult.payload;
+      flightSearchParams = searchResult.params;
+      if (flightsPayload?.flights?.length) {
         this.logger.log(
-          `✅ Flights found: ${flightsPayload.flights?.length || 0} options`,
+          `✅ Flights found: ${flightsPayload.flights.length} options`,
         );
       } else {
         this.logger.warn("⚠️ No flights payload returned from search");
@@ -77,23 +95,40 @@ export class ChatService {
       reply ||
       this.fallbackReply(classified.intent, messages, Boolean(flightsPayload));
 
+    const travelLinks = this.buildResponseTravelLinks(
+      travelServices,
+      flightSearchParams,
+    );
+
     const responseBody: ChatResponse = {
       reply: finalReply,
       intent: classified.intent,
     };
 
-    if (flightsPayload) {
-      flightsPayload.intro = flightsPayload.availabilityNote
-        ? `${finalReply}\n\n${flightsPayload.availabilityNote}`
-        : finalReply;
+    if (travelLinks.length) {
+      responseBody.travelLinks = travelLinks;
+    }
+
+    if (flightsPayload?.flights?.length) {
+      flightsPayload.intro = finalReply;
+      const compensairLink = travelLinks.find((l) => l.id === "compensair");
+      if (compensairLink) {
+        flightsPayload.compensationLink = compensairLink;
+      }
       responseBody.flights = flightsPayload;
       this.logger.log(
-        `📤 Response includes ${flightsPayload.flights?.length || 0} flights`,
+        `📤 Response includes ${flightsPayload.flights.length} flights`,
       );
-    } else {
-      this.logger.debug(
-        `📤 Response has no flights (intent: ${classified.intent})`,
-      );
+    } else if (
+      classified.intent === "flight_search" &&
+      travelServices.includes("flights")
+    ) {
+      const aviasalesLink = travelLinks.find((l) => l.id === "aviasales");
+      if (aviasalesLink) {
+        responseBody.flightFallback = { searchUrl: aviasalesLink.url };
+        responseBody.reply =
+          "I couldn't find any flights matching your search right now. You can explore more routes, airlines, and flexible dates using the options below.";
+      }
     }
 
     return responseBody;
@@ -107,9 +142,10 @@ export class ChatService {
     ].join("\n");
   }
 
-  private async runFlightSearch(
-    messages: ChatMessage[],
-  ): Promise<FlightsChatPayload | null> {
+  private async runFlightSearch(messages: ChatMessage[]): Promise<{
+    payload: FlightsChatPayload | null;
+    params: FlightSearchParams | null;
+  }> {
     this.logger.debug(
       `🔍 Building flight search params from ${messages.length} messages`,
     );
@@ -128,7 +164,7 @@ export class ChatService {
       this.logger.warn(
         "🚫 Flight intent detected but missing origin/destination — asking user for clarification",
       );
-      return null;
+      return { payload: null, params: null };
     }
 
     this.logger.log(
@@ -147,22 +183,58 @@ export class ChatService {
           `✅ Flight API success: ${result.payload.flights.length} flights found`,
         );
       }
-      return result.payload;
+      return { payload: result.payload, params };
     } catch (error) {
       this.logger.error(
         `❌ Flight API failed: ${error instanceof Error ? error.message : error}`,
         error instanceof Error ? error.stack : "",
       );
-      return null;
+      return { payload: null, params };
     }
+  }
+
+  private buildResponseTravelLinks(
+    services: ReturnType<typeof resolveTravelServices>,
+    flightParams: FlightSearchParams | null,
+  ): TravelLink[] {
+    if (!services.length) return [];
+
+    const marker = this.config.keys.AVIASALES_MARKER?.trim();
+    const urls = {
+      compensair: this.config.keys.COMPENSAIR_URL,
+      kkday: this.config.keys.KKDAY_URL,
+      wegotrip: this.config.keys.WEGOTRIP_URL,
+      getrentacar: this.config.keys.GETRENTACAR_URL,
+      kiwiTaxi: this.config.keys.KIWI_TAXI_URL,
+      yesim: this.config.keys.YESIM_URL,
+    };
+
+    return buildTravelLinks(services, {
+      urls: Object.fromEntries(
+        Object.entries(urls).filter(([, value]) => Boolean(value)),
+      ),
+      flightParams,
+      aviasalesMarker: marker,
+      includeOptionalKkdayForFlights: true,
+    });
   }
 
   private buildSystemPrompt(intent: ChatIntentType, hasLiveFlights: boolean) {
     switch (intent) {
       case "flight_search":
         return this.buildFlightPrompt(hasLiveFlights);
+      case "flight_insurance":
+        return this.buildFlightInsurancePrompt();
       case "hotel_search":
         return this.buildHotelPrompt();
+      case "esim":
+        return this.buildEsimPrompt();
+      case "activities":
+        return this.buildActivitiesPrompt();
+      case "car_rental":
+        return this.buildCarRentalPrompt();
+      case "airport_transfer":
+        return this.buildAirportTransferPrompt();
       case "itinerary":
         return this.buildItineraryPrompt();
       case "restaurants_bars":
@@ -204,7 +276,13 @@ export class ChatService {
         return hasFlights
           ? this.anthropic.tokenLimit(keys.ANTHROPIC_MAX_TOKENS_FLIGHT, 200)
           : this.anthropic.tokenLimit(keys.ANTHROPIC_MAX_TOKENS_BRIEF, 350);
+      case "flight_insurance":
+        return this.anthropic.tokenLimit(keys.ANTHROPIC_MAX_TOKENS_BRIEF, 450);
       case "hotel_search":
+      case "esim":
+      case "activities":
+      case "car_rental":
+      case "airport_transfer":
       case "trip_plan":
         return this.anthropic.tokenLimit(keys.ANTHROPIC_MAX_TOKENS, 1200);
       case "place_info":
@@ -230,6 +308,10 @@ export class ChatService {
       return "Share your origin and destination (e.g. JAI to DEL) and travel date — I’ll pull live flight prices for you.";
     }
 
+    if (intent === "flight_insurance") {
+      return "If your flight was delayed, cancelled, or you were denied boarding, you may be able to claim compensation. Share your route, date, and airline — and use the compensation check below to see what you may be owed.";
+    }
+
     if (/^(hi|hello|hey|hola|namaste|howdy)\b/.test(text)) {
       return [
         "Hey! I’m your travel genius — flights, hotels, itineraries, and local tips.",
@@ -248,9 +330,12 @@ export class ChatService {
       "Always respond in English. Only use another language if the user explicitly asks",
       "Never use slang, casual language (like 'abe', 'haha'), or abusive words. Always be respectful and courteous.",
       "",
+      TRAVEL_ASSISTANT_RULES,
+      "",
       "MODE: FLIGHT SEARCH / BOOKING",
-      "The platform runs a live flight search API from the user's message (origin, destination, date).",
+      "The platform runs a live flight search via TravelPayouts from the user's message (origin, destination, date, passengers, cabin).",
       `FLAG: hasLiveResults = ${hasLiveResults}. This MUST guide your response.`,
+      "Relevant booking links (Aviasales, flight compensation check, KKDay) are shown in the UI — do NOT paste URLs in your reply.",
     ];
 
     if (hasLiveResults) {
@@ -275,6 +360,24 @@ export class ChatService {
     return lines.join("\n");
   }
 
+  private buildFlightInsurancePrompt() {
+    return [
+      "You are My Travel Geek — a friendly personal travel genius.",
+      "Sound human, warm, simple, and PROFESSIONAL. Never mention AI, models, or systems.",
+      "Always respond in English. Only use another language if the user explicitly asks",
+      "Never use slang, casual language, or abusive words. Always be respectful and courteous.",
+      "",
+      TRAVEL_ASSISTANT_RULES,
+      "",
+      "MODE: FLIGHT DELAY / CANCELLATION COMPENSATION",
+      "The user may be asking about flight insurance or compensation for a disrupted flight.",
+      "Explain briefly: under EU, Turkey, and Canada rules, passengers may claim up to €600 for long delays, cancellations, denied boarding, or missed connections (typically within the last 6 years).",
+      "TravelGeek does NOT process claims — a compensation calculator link is shown in the UI. Do NOT paste URLs.",
+      "Ask for useful details if missing: origin, destination, departure date, airline, and what happened (delay, cancellation, denied boarding, missed connection).",
+      "80–120 words. Plain paragraphs or short bullets. Be reassuring and practical.",
+    ].join("\n");
+  }
+
   private buildHotelPrompt() {
     return [
       "You are My Travel Geek — a friendly personal travel genius.",
@@ -282,11 +385,83 @@ export class ChatService {
       "Always respond in English. Only use another language if the user explicitly asks",
       "Never use slang, casual language, or abusive words. Always be respectful and courteous.",
       "",
-      "MODE: HOTEL / STAY SEARCH",
-      "Help with where to stay, areas to book, and what to look for in hotels.",
-      "Live hotel price cards are not wired yet — do NOT invent nightly rates or availability.",
-      "Ask for: city/area, check-in & check-out dates, budget, and number of guests.",
+      TRAVEL_ASSISTANT_RULES,
+      "",
+      "MODE: HOTEL / STAY GUIDANCE",
+      "TravelGeek does NOT have hotel booking APIs — never search hotels or invent rates, availability, or hotel listings.",
+      "Provide helpful hotel guidance: areas to stay, what to look for, budget tips, and neighborhood advice.",
+      "Ask for: city/area, check-in & check-out dates, budget, and number of guests when helpful.",
+      "A KKDay booking link is shown in the UI — do NOT paste URLs in your reply.",
       "Give 3–5 practical tips or area suggestions in 80–120 words. Plain paragraphs or short bullets.",
+    ].join("\n");
+  }
+
+  private buildEsimPrompt() {
+    return [
+      "You are My Travel Geek — a friendly personal travel genius.",
+      "Sound human, warm, simple, and PROFESSIONAL. Never mention AI, models, or systems.",
+      "Always respond in English. Only use another language if the user explicitly asks",
+      "Never use slang, casual language, or abusive words. Always be respectful and courteous.",
+      "",
+      TRAVEL_ASSISTANT_RULES,
+      "",
+      "MODE: TRAVEL eSIM / MOBILE DATA",
+      "TravelGeek does NOT have eSIM APIs — never invent plans, prices, or availability.",
+      "Give practical guidance: data needs, eSIM vs physical SIM, device compatibility, and tips for the destination.",
+      "A Yesim booking link is shown in the UI — do NOT paste URLs in your reply.",
+      "Do NOT mention flights unless the user asked about flights in this same message.",
+      "80–120 words. Plain paragraphs or short bullets.",
+    ].join("\n");
+  }
+
+  private buildActivitiesPrompt() {
+    return [
+      "You are My Travel Geek — a friendly personal travel genius.",
+      "Sound human, warm, simple, and PROFESSIONAL. Never mention AI, models, or systems.",
+      "Always respond in English. Only use another language if the user explicitly asks",
+      "Never use slang, casual language, or abusive words. Always be respectful and courteous.",
+      "",
+      TRAVEL_ASSISTANT_RULES,
+      "",
+      "MODE: ACTIVITIES / TOURS / ATTRACTIONS",
+      "TravelGeek does NOT have activity booking APIs — never invent tour prices, tickets, or availability.",
+      "Give destination guidance: what to see, best areas, timing tips, and what to book ahead.",
+      "KKDay and WeGoTrip links are shown in the UI when relevant — do NOT paste URLs in your reply.",
+      "120–180 words. Markdown with short ### sections is OK.",
+    ].join("\n");
+  }
+
+  private buildCarRentalPrompt() {
+    return [
+      "You are My Travel Geek — a friendly personal travel genius.",
+      "Sound human, warm, simple, and PROFESSIONAL. Never mention AI, models, or systems.",
+      "Always respond in English. Only use another language if the user explicitly asks",
+      "Never use slang, casual language, or abusive words. Always be respectful and courteous.",
+      "",
+      TRAVEL_ASSISTANT_RULES,
+      "",
+      "MODE: CAR / VEHICLE RENTAL",
+      "TravelGeek does NOT have rental APIs — never search rentals or invent rates or availability.",
+      "Give practical guidance: license/ID requirements, insurance basics, city vs self-drive tips, and what to check before booking.",
+      "A GetRentacar link is shown in the UI — do NOT paste URLs in your reply.",
+      "80–120 words. Plain paragraphs or short bullets.",
+    ].join("\n");
+  }
+
+  private buildAirportTransferPrompt() {
+    return [
+      "You are My Travel Geek — a friendly personal travel genius.",
+      "Sound human, warm, simple, and PROFESSIONAL. Never mention AI, models, or systems.",
+      "Always respond in English. Only use another language if the user explicitly asks",
+      "Never use slang, casual language, or abusive words. Always be respectful and courteous.",
+      "",
+      TRAVEL_ASSISTANT_RULES,
+      "",
+      "MODE: AIRPORT / HOTEL TRANSFERS",
+      "TravelGeek does NOT have transfer APIs — never invent prices, drivers, or live availability.",
+      "Give practical guidance: private vs shared transfer, typical pickup process, and what details to confirm (flight number, terminal, passengers, luggage).",
+      "A Kiwi Taxi link is shown in the UI — do NOT paste URLs in your reply.",
+      "80–120 words. Plain paragraphs or short bullets.",
     ].join("\n");
   }
 
@@ -297,9 +472,12 @@ export class ChatService {
       "Always respond in English. Only use another language if the user explicitly asks",
       "Never use slang, casual language, or abusive words. Always be respectful and courteous.",
       "",
+      TRAVEL_ASSISTANT_RULES,
+      "",
       "MODE: PLACE / DESTINATION INFORMATION",
       "User wants info about a place — attractions, food, culture, weather, safety, etc.",
       "NOT a full day-by-day itinerary unless they ask to plan the whole trip.",
+      "For tours, activities, museums, or tickets: give destination guidance first; booking links (KKDay, WeGoTrip) appear in the UI when relevant — do NOT paste URLs.",
       "Use Markdown: short ### sections and bullets. 120–200 words.",
       "Be specific with real place names when you know them. No invented prices.",
     ].join("\n");
@@ -311,6 +489,8 @@ export class ChatService {
       "Sound human, warm, simple, and PROFESSIONAL. Never mention AI, models, or systems.",
       "Always respond in English. Only use another language if the user explicitly asks",
       "Never use slang, casual language, or abusive words. Always be respectful and courteous.",
+      "",
+      TRAVEL_ASSISTANT_RULES,
       "",
       "MODE: RESTAURANTS + BARS",
       "Recommend places to eat/drink with a mix of price points and vibes.",
@@ -327,6 +507,8 @@ export class ChatService {
       "Always respond in English. Only use another language if the user explicitly asks",
       "Never use slang, casual language, or abusive words. Always be respectful and courteous.",
       "",
+      TRAVEL_ASSISTANT_RULES,
+      "",
       "MODE: TRAVEL SAFETY",
       "Give practical safety guidance: common scams, areas/times to be careful, transport safety, emergency basics.",
       "Avoid medical or legal advice; suggest official sources when needed.",
@@ -341,6 +523,9 @@ export class ChatService {
       "Sound human, warm, clear, and PROFESSIONAL. Never mention AI, models, or systems.",
       "Always respond in English. Only use another language if the user explicitly asks",
       "Never use slang, casual language, or abusive words. Always be respectful and courteous.",
+      "",
+      TRAVEL_ASSISTANT_RULES,
+      "",
       "MODE: MOST DIRECT ROUTES / HOW TO GET THERE",
       "Explain best route options (flight/train/bus/car) and approximate time ranges.",
       "If you are unsure, give ranges and ask for start/end points and dates.",
@@ -355,6 +540,8 @@ export class ChatService {
       "Sound human, warm, simple, and PROFESSIONAL. Never mention AI, models, or systems.",
       "Always respond in English. Only use another language if the user explicitly asks",
       "Never use slang, casual language, or abusive words. Always be respectful and courteous.",
+      "",
+      TRAVEL_ASSISTANT_RULES,
       "",
       "MODE: TRIP PLANNING (overview, not full day-by-day)",
       "Give a helpful trip overview: best time to visit, how many days, main areas, transport between cities, vibe.",
@@ -371,17 +558,21 @@ export class ChatService {
       "Always respond in English. Only use another language if the user explicitly asks",
       "Never use slang, casual language, or abusive words. Always be respectful and courteous.",
       "",
+      TRAVEL_ASSISTANT_RULES,
+      "",
       "MODE: GENERAL TRAVEL CHAT",
       "",
       "Help the user choose what they need:",
       "- Flights: live prices when they give route + date (e.g. Jaipur to Delhi, 5 July)",
-      "- Hotels: areas and tips (live hotel search coming soon)",
+      "- Hotels: guidance and area tips (no live hotel search — booking links appear in UI when relevant)",
+      "- Activities & tours: destination guidance; KKDay / WeGoTrip links in UI when relevant",
+      "- Car rental, airport transfers, eSIM: guidance only; relevant partner links appear in UI",
       "- Full itinerary: day-by-day plan",
       "- Place info: things to do, food, culture in a destination",
       "",
       "GREETINGS: Warm 2–3 sentences, invite them to pick flights, hotels, or planning.",
       "OTHER: 40–80 words, plain paragraphs. One closing question.",
-      "Do not invent prices or bookings.",
+      "Do not invent prices or bookings. Do not paste partner URLs — they are shown as buttons in the UI.",
     ].join("\n");
   }
 
@@ -391,6 +582,8 @@ export class ChatService {
       "Sound human, warm, practical, and PROFESSIONAL. Never mention AI, models, or systems.",
       "Always respond in English. Only use another language if the user explicitly asks",
       "Never use slang, casual language, or abusive words. Always be respectful and courteous.",
+      "",
+      TRAVEL_ASSISTANT_RULES,
       "",
       "MODE: DETAILED CHECKLIST (packing lists, step-by-step lists, 'puri list', 'detailed').",
       "Do NOT use the brief 40–70 word format. Provide a complete, organized checklist the user can follow.",
@@ -410,6 +603,8 @@ export class ChatService {
       "Sound enthusiastic, human, helpful, and PROFESSIONAL — like a friend who knows the route well. Never mention AI or systems.",
       "Always respond in English. Only use another language if the user explicitly asks",
       "Never use slang, casual language, or abusive words. Always be respectful and courteous.",
+      "",
+      TRAVEL_ASSISTANT_RULES,
       "",
       "MODE: DETAILED ITINERARY (day-by-day schedule)",
       "Give a complete, practical plan they can follow.",

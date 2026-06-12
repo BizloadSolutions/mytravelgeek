@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import AssistantMarkdown from "@/components/chat/AssistantMarkdown";
 import { fetchFlightPage } from "@/lib/flights-api";
 import { getAirportCity } from "@/lib/airports";
+import AviasalesMoreLink from "@/components/flights/AviasalesMoreLink";
 import type {
   FlightOptionCard,
   FlightsChatPayload,
@@ -12,7 +14,7 @@ import type {
 
 type Props = Partial<FlightsChatPayload>;
 
-function renderAvailabilityInline(text: string) {
+function renderAvailabilityInline(text: string, searchMoreUrl?: string) {
   const trimmed = text.trim();
   const match =
     /No flights on\s+([^;.!?]+)\s*;\s*(showing\s+.*?instead\.?)/i.exec(trimmed);
@@ -28,6 +30,7 @@ function renderAvailabilityInline(text: string) {
     <>
       {prefixWithSpace}
       <strong>No flights on {date}</strong>; <strong>{fallback}</strong>
+      {searchMoreUrl ? <AviasalesMoreLink url={searchMoreUrl} /> : null}
     </>
   );
 }
@@ -178,8 +181,11 @@ function FlightCard({ flight }: { flight: FlightOptionCard }) {
                 <span className="text-sm font-semibold">
                   {flight.airlineName}
                 </span>
-                <span className="text-xs font-normal text-zinc-600">
-                  {flight.routeCode} &bull; {flight.travelDate}
+                <span className="text-xs font-normal text-green-600">
+                  {/* // text-zinc-600 */}
+                  {flight.returnTravelDate
+                    ? `${flight.routeCode.replace(/\s*>\s*/g, " ↔ ")} • ${flight.travelDate} – ${flight.returnTravelDate}`
+                    : `${flight.routeCode} • ${flight.travelDate}`}
                 </span>
               </div>
             </div>
@@ -277,7 +283,11 @@ const FlightsOptionInSideChat = (props: Props) => {
     : "Destination";
   const intro = props.intro?.trim() || DEFAULT_PAYLOAD.intro;
   const routeTitle = props.routeTitle ?? `${destinationCity} Flights`;
+  const isRoundTrip = props.isRoundTrip ?? false;
+  const returnTravelDateLabel = props.returnTravelDateLabel?.trim();
   const availabilityNote = props.availabilityNote?.trim();
+  const searchMoreUrl = props.searchMoreUrl?.trim();
+  const compensationLink = props.compensationLink;
 
   const [flights, setFlights] = useState<FlightOptionCard[]>(
     () => props.flights ?? DEFAULT_PAYLOAD.flights,
@@ -337,12 +347,19 @@ const FlightsOptionInSideChat = (props: Props) => {
         {routeTitle ? (
           <b className="text-base text-[var(--main-primary)]">{routeTitle}</b>
         ) : null}
-        <p className="m-0 text-sm font-normal">
-          {renderAvailabilityInline(intro)}
-          {availabilityNote ? (
-            <> {renderAvailabilityInline(availabilityNote)}</>
-          ) : null}
-        </p>
+        {isRoundTrip && props.travelDateLabel && returnTravelDateLabel ? (
+          <p className="m-0 text-sm font-medium text-[var(--main-primary)]">
+            {props.travelDateLabel.includes("–")
+              ? props.travelDateLabel
+              : `${props.travelDateLabel} – ${returnTravelDateLabel}`}
+          </p>
+        ) : null}
+        <AssistantMarkdown content={intro} />
+        {availabilityNote ? (
+          <p className="m-0 text-sm font-normal">
+            {renderAvailabilityInline(availabilityNote, searchMoreUrl)}
+          </p>
+        ) : null}
       </div>
       <div className="flex flex-col gap-2.5 self-stretch">
         {flights.map((flight) => (
@@ -361,6 +378,23 @@ const FlightsOptionInSideChat = (props: Props) => {
       ) : null}
       {loadError ? (
         <p className="m-0 text-center text-xs text-red-600">{loadError}</p>
+      ) : null}
+      {compensationLink ? (
+        <div className="flex flex-col gap-1 rounded-lg border border-solid border-[#0f3a5d]/15 bg-white px-3 py-2.5">
+          <p className="m-0 text-xs text-zinc-600">
+            Flight delayed, cancelled, or denied boarding? You may be entitled
+            to up to €600 in compensation.
+          </p>
+          <a
+            href={compensationLink.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex w-fit items-center gap-1 text-xs font-semibold text-[#0f3a5d] underline-offset-2 hover:underline"
+          >
+            <i className="ti ti-shield-check text-sm" aria-hidden="true" />
+            {compensationLink.label}
+          </a>
+        </div>
       ) : null}
     </div>
   );

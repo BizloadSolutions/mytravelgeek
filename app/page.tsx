@@ -5,6 +5,7 @@ import Image from "next/image";
 import MainTravelGeekModal from "@/components/modals/MainTravelGeekModal";
 import { trackHeroSearchSubmit } from "@/lib/analytics";
 
+
 const travelSuggestions = [
   "Greek islands with few tourists",
   "Family road trip to National Parks in Utah",

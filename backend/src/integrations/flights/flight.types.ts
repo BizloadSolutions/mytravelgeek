@@ -1,15 +1,14 @@
 export type FlightSearchContext = {
   origin: string;
   destination: string;
-  /** When set, only flights departing on this calendar day (YYYY-MM-DD) are returned. */
   departDate?: string;
-  /** When set, use round-trip search with exact return date (YYYY-MM-DD). */
+  departMonth?: string;
   returnDate?: string;
+  isReturnFlight?: boolean;
   adults: number;
-  noLowcost: boolean;
-  /** If true, request direct flights only (when supported by API). */
+  children?: number;
+  infants?: number;
   direct?: boolean;
-  /** Cabin class for Travelpayouts GraphQL (e.g. Y/C/F/W). */
   tripClass?: string;
 };
 
@@ -27,6 +26,7 @@ export type FlightsPagination = {
 
 export type TravelpayoutsPriceRow = {
   departure_at?: string;
+  return_at?: string;
   value?: number;
   ticket_link?: string;
   currency?: string;
@@ -34,10 +34,11 @@ export type TravelpayoutsPriceRow = {
   origin_country_iata?: string;
   destination_airport_iata?: string;
   destination_city_iata?: string;
-  /** Flight duration in minutes. */
+  /** Flight duration in minutes (outbound for round-trip). */
   duration?: number;
   main_airline?: string;
   provider?: string;
+  number_of_changes?: number;
 };
 
 export type FlightStopSegment = {
@@ -60,6 +61,8 @@ export type FlightOptionCard = {
   airlineLogoUrl?: string;
   routeCode: string;
   travelDate: string;
+  /** Formatted return date for round-trip cards. */
+  returnTravelDate?: string;
   departureTime: string;
   /** Arrival time, derived from departure + duration. */
   arrivalTime: string;
@@ -74,6 +77,12 @@ export type FlightOptionCard = {
   stops?: FlightStopSegment[];
 };
 
+export type FlightCompensationLink = {
+  id: string;
+  label: string;
+  url: string;
+};
+
 export type FlightsChatPayload = {
   routeTitle?: string;
   intro: string;
@@ -84,7 +93,13 @@ export type FlightsChatPayload = {
   originCode: string;
   destinationCode: string;
   travelDateLabel: string;
+  /** Formatted return date for round-trip searches (header/intro). */
+  returnTravelDateLabel?: string;
+  isRoundTrip?: boolean;
   flights: FlightOptionCard[];
+  searchMoreUrl?: string;
+  /** Compensair — check eligibility for delay/cancellation compensation. */
+  compensationLink?: FlightCompensationLink;
   pagination?: FlightsPagination;
 };
 
