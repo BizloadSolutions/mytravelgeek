@@ -12,6 +12,7 @@
     "lint": "eslint \"src/**/*.ts\""
   },
   "dependencies": {
+    "airline-codes": "^1.1.2",
     "@anthropic-ai/sdk": "^0.38.0",
     "@nestjs/common": "^11.1.8",
     "@nestjs/config": "^4.0.2",
