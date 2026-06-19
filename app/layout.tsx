@@ -16,19 +16,31 @@ export const metadata: Metadata = {
   title: "My Travel Geek AI",
   description: "Your Personal Travel Expert, Anytime",
   icons: {
+    // PNG first — works on iOS, Android, and browsers that ignore SVG/media queries.
     icon: [
       {
-        url: "/favicon.svg",
-        type: "image/svg+xml",
-        media: "(prefers-color-scheme: light)",
+        url: "/images/logo/icon-coloured.png",
+        sizes: "32x32",
+        type: "image/png",
       },
       {
-        url: "/favicon-light.svg",
+        url: "/images/logo/icon-coloured.png",
+        sizes: "16x16",
+        type: "image/png",
+      },
+      {
+        url: "/images/logo/icon-coloured.svg",
         type: "image/svg+xml",
-        media: "(prefers-color-scheme: dark)",
       },
     ],
-    shortcut: "/favicon.svg",
+    apple: [
+      {
+        url: "/images/logo/icon-coloured.png",
+        sizes: "180x180",
+        type: "image/png",
+      },
+    ],
+    shortcut: "/images/logo/icon-coloured.png",
   },
 };
 
@@ -41,12 +53,17 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head suppressHydrationWarning>
         <script defer src="/js/strip-extension-attrs.js" />
-        <meta name="msapplication-TileColor" content="#ffffff" />
+        <meta name="msapplication-TileColor" content="#0f3a5d" />
         <meta
           name="msapplication-TileImage"
-          content="/images/fav-icon/ms-icon-144x144.png"
+          content="/images/logo/icon-coloured.png"
         />
-        <meta name="theme-color" content="#ffffff" />
+        <meta name="theme-color" content="#0f3a5d" />
+        <link
+          rel="apple-touch-icon"
+          href="/images/logo/icon-coloured.png"
+          sizes="180x180"
+        />
 
         <link rel="preconnect" href="https://cdn.jsdelivr.net" crossOrigin="" />
         <link rel="dns-prefetch" href="https://cdn.jsdelivr.net" />

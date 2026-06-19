@@ -10,7 +10,7 @@ export default function Footer() {
         <div className="flex w-full flex-col gap-6 sm:flex-row  items-center sm:justify-between">
           <a href="/" className="block w-[218px] max-w-full shrink-0">
             <Image
-              src="/images/logo-2.svg"
+              src="/images/logo/logo-coloured.svg"
               alt="MyTravelGeek"
               width={218}
               height={75}

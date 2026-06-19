@@ -1,46 +1,60 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from "react";
 import Image from "next/image";
 import MainTravelGeekModal from "@/components/modals/MainTravelGeekModal";
 import { trackHeroSearchSubmit } from "@/lib/analytics";
+import TravelSuggestionSparkIcon from "@/components/TravelSuggestionSparkIcon";
 
-
-const travelSuggestions = [
-  "Greek islands with few tourists",
-  "Family road trip to National Parks in Utah",
-  "Bachelorette party in Nashville",
+const travelSuggestionData = [
+  {
+    prompt: "Best things to do in Sydney this weekend",
+    icon: "🌆", // i want here icon of activity icon
+  },
+  {
+    prompt: "Road trip from Sydney to the Blue Mountains",
+    icon: "🚗",
+  },
+  {
+    prompt: "Flight for Sydney to Brisbane this Monday for 2 adults",
+    icon: "✈️",
+  },
 ];
 
 const askGeekCards = [
   {
-    img: "https://images.unsplash.com/photo-1559339352-11d035aa65de?w=800&q=80&auto=format&fit=crop",
-    alt: "Seafood by the sea",
-    text: "Treat yourself to gourmet seafood by the sea — discover elegant coastal restaurants known for fresh island flavors and unforgettable views.",
+    img: "https://images.unsplash.com/photo-1598948485421-33a1655d3c18?q=80&w=1074&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+    alt: "Sydney Harbour at dusk",
+    text: "Treat yourself to waterfront dining in Sydney — discover harbour-side restaurants with fresh seafood and iconic Opera House views.",
     layout: "lead",
-    prompt:
-      "Gourmet seafood by the sea and coastal restaurants with great views",
+    prompt: "Best waterfront restaurants and seafood in Sydney Harbour",
   },
   {
-    img: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&q=80&auto=format&fit=crop",
-    alt: "Tropical beach destination",
-    text: "Discover dreamy destinations with clear blue waters and laid-back vibes.",
+    img: "https://images.unsplash.com/photo-1506973035872-a4ec16b8e8d9?w=800&q=80&auto=format&fit=crop",
+    alt: "Bondi Beach Sydney",
+    text: "Discover Sydney's best beaches — from Bondi to Manly, with laid-back coastal vibes and surf at every turn.",
     layout: "quote",
-    prompt: "Dreamy destinations with clear blue waters and laid-back vibes",
+    prompt: "Best beaches in Sydney from Bondi to Manly",
   },
   {
-    img: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=800&q=80&auto=format&fit=crop",
-    alt: "Cliffside coastal view",
-    text: "Send me to stunning cliffside escapes around the world.",
+    img: "https://images.unsplash.com/photo-1508804185872-d7badad00f7d?w=800&q=80&auto=format&fit=crop",
+    alt: "Sydney Opera House",
+    text: "See the best of Sydney — harbour cruises, Opera House tours, and hidden gems around Circular Quay.",
     layout: "quote",
-    prompt: "Stunning cliffside escapes around the world",
+    prompt: "Top things to do in Sydney around the harbour",
   },
   {
-    img: "https://images.unsplash.com/photo-1507608869274-d3177c8bb4c7?w=800&q=80&auto=format&fit=crop",
-    alt: "Hot air balloon adventure",
-    text: "Ready for an adventure above it all? Discover amazing hot air balloon trips perfect for the whole family.",
+    img: "https://images.unsplash.com/photo-1566734904496-9309bb1798ae?q=80&w=1171&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+    alt: "Brisbane River",
+    text: "Discover the best of Brisbane — from the river to the city's hidden gems. Explore the city's best restaurants, bars, and attractions.",
     layout: "quote",
-    prompt: "Hot air balloon trips for the whole family",
+    prompt: "Best places to visit in Brisbane",
   },
 ];
 
@@ -84,30 +98,19 @@ const AskIcon = () => (
 const SUGGESTION_SPARK_PATH =
   "M7.9608 13.3467L8.619 11.8391C9.20482 10.4975 10.2592 9.42945 11.5744 8.84565L13.3861 8.04143C13.9621 7.78575 13.9621 6.94776 13.3861 6.69208L11.6309 5.91296C10.2819 5.31414 9.20865 4.20661 8.63287 2.81921L7.96612 1.21255C7.7187 0.616324 6.89489 0.616326 6.64747 1.21255L5.9807 2.81919C5.40493 4.20661 4.33165 5.31414 2.98264 5.91296L1.22743 6.69208C0.651402 6.94776 0.651402 7.78575 1.22743 8.04143L3.03922 8.84565C4.35442 9.42945 5.40878 10.4975 5.99456 11.8391L6.6528 13.3467C6.90582 13.9262 7.70775 13.9262 7.9608 13.3467ZM14.551 17.0174L14.7361 16.5932C15.0661 15.8367 15.6605 15.2344 16.4021 14.9049L16.9724 14.6515C17.2809 14.5144 17.2809 14.0662 16.9724 13.9292L16.4341 13.6899C15.6733 13.352 15.0683 12.7274 14.7439 11.9452L14.5539 11.4867C14.4214 11.1672 13.9796 11.1672 13.8471 11.4867L13.657 11.9452C13.3327 12.7274 12.7277 13.352 11.967 13.6899L11.4286 13.9292C11.1202 14.0662 11.1202 14.5144 11.4286 14.6515L11.9989 14.9049C12.7405 15.2344 13.3348 15.8367 13.6648 16.5932L13.85 17.0174C13.9855 17.328 14.4155 17.328 14.551 17.0174Z";
 
-function TravelSuggestionSparkIcon({ clipId }: { clipId: string }) {
-  return (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 18 18"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <g clipPath={`url(#${clipId})`}>
-        <path d={SUGGESTION_SPARK_PATH} fill="#0F3A5D" />
-      </g>
-      <defs>
-        <clipPath id={clipId}>
-          <rect width="18" height="18" fill="white" />
-        </clipPath>
-      </defs>
-    </svg>
-  );
-}
-
 export default function HomePage() {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Auto-grow the search field across lines, then let it scroll once it hits
+  // the max height (capped via CSS). Works the same on mobile and desktop.
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [searchQuery]);
 
   const handleOpenModal = (query = "") => {
     if (query) setSearchQuery(query);
@@ -162,7 +165,7 @@ export default function HomePage() {
                 />
               </svg>
               <form
-                className="relative z-20 mx-auto flex min-h-[53px] w-full max-w-[800px] flex-1 items-center gap-2 rounded-[60px] border border-solid border-black/10 bg-[var(--bg-background-muted)] py-1.5 pl-[15px] pr-1.5 shadow-[0_2px_5px_rgba(0,0,0,0.10)]"
+                className="relative z-20 mx-auto flex min-h-[53px] w-full max-w-[800px] flex-1 items-center gap-2 rounded-[28px] border border-solid border-black/10 bg-[var(--bg-background-muted)] py-1.5 pl-[15px] pr-1.5 shadow-[0_2px_5px_rgba(0,0,0,0.10)]"
                 action="#"
                 method="get"
                 role="search"
@@ -170,47 +173,36 @@ export default function HomePage() {
               >
                 <div className="flex min-w-0 flex-1 items-center gap-2.5">
                   <span
-                    className="inline-flex size-6 shrink-0"
+                    className="inline-flex size-6 shrink-0 items-center justify-center"
                     aria-hidden="true"
                   >
-                    <svg
-                      width="24"
-                      height="24"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <path
-                        d="M10.6144 17.7956L11.492 15.7854C12.2731 13.9966 13.6789 12.5726 15.4325 11.7942L17.8482 10.7219C18.6162 10.381 18.6162 9.26368 17.8482 8.92277L15.5079 7.88394C13.7092 7.08552 12.2782 5.60881 11.5105 3.75894L10.6215 1.61673C10.2916 0.821766 9.19319 0.821768 8.8633 1.61673L7.97427 3.75892C7.20657 5.60881 5.77553 7.08552 3.97685 7.88394L1.63658 8.92277C0.868537 9.26368 0.868536 10.381 1.63658 10.7219L4.0523 11.7942C5.80589 12.5726 7.21171 13.9966 7.99275 15.7854L8.8704 17.7956C9.20776 18.5682 10.277 18.5682 10.6144 17.7956ZM19.4014 22.6899L19.6482 22.1242C20.0882 21.1156 20.8807 20.3125 21.8695 19.8732L22.6299 19.5353C23.0412 19.3526 23.0412 18.7549 22.6299 18.5722L21.9121 18.2532C20.8978 17.8026 20.0911 16.9698 19.6586 15.9269L19.4052 15.3156C19.2285 14.8896 18.6395 14.8896 18.4628 15.3156L18.2094 15.9269C17.777 16.9698 16.9703 17.8026 15.956 18.2532L15.2381 18.5722C14.8269 18.7549 14.8269 19.3526 15.2381 19.5353L15.9985 19.8732C16.9874 20.3125 17.7798 21.1156 18.2198 22.1242L18.4667 22.6899C18.6473 23.104 19.2207 23.104 19.4014 22.6899Z"
-                        fill="url(#paint0_linear_8_5)"
-                      />
-                      <defs>
-                        <linearGradient
-                          id="paint0_linear_8_5"
-                          x1="11.9995"
-                          y1="1.02051"
-                          x2="11.9995"
-                          y2="23.0005"
-                          gradientUnits="userSpaceOnUse"
-                        >
-                          <stop stopColor="#F26537" />
-                          <stop offset="1" stopColor="#0F3A5D" />
-                        </linearGradient>
-                      </defs>
-                    </svg>
+                    <Image
+                      src="/images/logo/icon-coloured.svg"
+                      alt="logo"
+                      width={24}
+                      height={24}
+                      className="h-full w-full object-contain"
+                      style={{ width: "24px", height: "24px" }}
+                    />
                   </span>
                   {/* <!-- <label className="sr-only" for="travel-prompt">Ask me anything about travel</label> --> */}
-                  <input
+                  <textarea
                     id="travel-prompt"
-                    type="text"
+                    ref={textareaRef}
                     name="q"
+                    rows={1}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    inputMode="search"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        e.currentTarget.form?.requestSubmit();
+                      }
+                    }}
                     enterKeyHint="search"
                     autoComplete="off"
                     placeholder="Ask me anything about travel!"
-                    className="min-h-[38px] min-w-0 flex-1 border-0 bg-transparent text-sm font-normal text-zinc-900 outline-none ring-0 placeholder:text-zinc-600 focus:ring-0"
+                    className="max-h-[120px] min-h-[24px] min-w-0 flex-1 resize-none overflow-y-auto border-0 bg-transparent py-0 text-sm font-normal leading-6 text-zinc-900 outline-none ring-0 placeholder:text-zinc-600 focus:ring-0"
                   />
                 </div>
                 <button
@@ -265,23 +257,21 @@ export default function HomePage() {
             aria-label="Suggested searches"
           >
             <div className="inline-flex max-w-full flex-nowrap items-center gap-x-[15px] py-0.5">
-              {travelSuggestions.map((suggestion, i) => (
+              {travelSuggestionData.map((suggestion, i) => (
                 <button
-                  key={suggestion}
+                  key={suggestion.prompt}
                   type="button"
                   className="travel-suggestion-chip inline-flex shrink-0 cursor-pointer items-center gap-[5px] rounded-2xl bg-zinc-100 px-2.5 py-2 text-left text-xs font-normal whitespace-nowrap text-zinc-600 transition-colors hover:bg-zinc-200"
                   data-q={suggestion}
-                  onClick={() => handleOpenModal(suggestion)}
+                  onClick={() => handleOpenModal(suggestion.prompt)}
                 >
                   <span
                     className="inline-flex size-[18px] shrink-0 items-center justify-center"
                     aria-hidden="true"
                   >
-                    <TravelSuggestionSparkIcon
-                      clipId={`travel_suggest_clip_${i}`}
-                    />
+                    <span className="text-sm">{suggestion.icon}</span>
                   </span>
-                  <span>{suggestion}</span>
+                  <span>{suggestion.prompt as ReactNode}</span>
                 </button>
               ))}
             </div>
@@ -495,7 +485,11 @@ export default function HomePage() {
                       aria-hidden="true"
                     ></span>
                     <span className="relative z-[1] flex items-center justify-center gap-1.5 px-3.5 py-2.5 text-sm font-semibold text-white">
-                      <i className="ti ti-sparkles text-base text-white/95"></i>
+                      <TravelSuggestionSparkIcon
+                        height={18}
+                        width={18}
+                        theme="light"
+                      />
                       Ciao!
                     </span>
                   </span>
@@ -505,7 +499,11 @@ export default function HomePage() {
                       aria-hidden="true"
                     ></span>
                     <span className="relative z-[1] flex items-center justify-center gap-1.5 px-3.5 py-2.5 text-sm font-semibold text-white">
-                      <i className="ti ti-sparkles text-base text-white/95"></i>
+                      <TravelSuggestionSparkIcon
+                        height={18}
+                        width={18}
+                        theme="light"
+                      />
                       Hola!
                     </span>
                   </span>
@@ -515,7 +513,11 @@ export default function HomePage() {
                       aria-hidden="true"
                     ></span>
                     <span className="relative z-[1] flex items-center justify-center gap-1.5 px-3.5 py-2.5 text-sm font-semibold text-white">
-                      <i className="ti ti-sparkles text-base text-white/95"></i>
+                      <TravelSuggestionSparkIcon
+                        height={18}
+                        width={18}
+                        theme="light"
+                      />
                       Habari
                     </span>
                   </span>
@@ -525,7 +527,11 @@ export default function HomePage() {
                       aria-hidden="true"
                     ></span>
                     <span className="relative z-[1] flex items-center justify-center gap-1.5 px-3.5 py-2.5 text-sm font-semibold text-white">
-                      <i className="ti ti-sparkles text-base text-white/95"></i>
+                      <TravelSuggestionSparkIcon
+                        height={18}
+                        width={18}
+                        theme="light"
+                      />
                       Привет
                     </span>
                   </span>
@@ -548,34 +554,14 @@ export default function HomePage() {
                   onClick={() => handleOpenModal("")}
                   className="inline-flex h-10 items-center gap-2.5 rounded-full bg-white px-5 text-sm font-semibold text-zinc-800 shadow-sm transition hover:bg-zinc-100"
                 >
-                  <svg
-                    className="h-6 w-6 shrink-0"
-                    width="24"
-                    height="24"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                    aria-hidden="true"
-                  >
-                    <path
-                      d="M10.6144 17.7956L11.492 15.7854C12.2731 13.9966 13.6789 12.5726 15.4325 11.7942L17.8482 10.7219C18.6162 10.381 18.6162 9.26368 17.8482 8.92277L15.5079 7.88394C13.7092 7.08552 12.2782 5.60881 11.5105 3.75894L10.6215 1.61673C10.2916 0.821766 9.19319 0.821768 8.8633 1.61673L7.97427 3.75892C7.20657 5.60881 5.77553 7.08552 3.97685 7.88394L1.63658 8.92277C0.868537 9.26368 0.868536 10.381 1.63658 10.7219L4.0523 11.7942C5.80589 12.5726 7.21171 13.9966 7.99275 15.7854L8.8704 17.7956C9.20776 18.5682 10.277 18.5682 10.6144 17.7956ZM19.4014 22.6899L19.6482 22.1242C20.0882 21.1156 20.8807 20.3125 21.8695 19.8732L22.6299 19.5353C23.0412 19.3526 23.0412 18.7549 22.6299 18.5722L21.9121 18.2532C20.8978 17.8026 20.0911 16.9698 19.6586 15.9269L19.4052 15.3156C19.2285 14.8896 18.6395 14.8896 18.4628 15.3156L18.2094 15.9269C17.777 16.9698 16.9703 17.8026 15.956 18.2532L15.2381 18.5722C14.8269 18.7549 14.8269 19.3526 15.2381 19.5353L15.9985 19.8732C16.9874 20.3125 17.7798 21.1156 18.2198 22.1242L18.4667 22.6899C18.6473 23.104 19.2207 23.104 19.4014 22.6899Z"
-                      fill="url(#paint0_hero_say_hi)"
-                    />
-                    <defs>
-                      <linearGradient
-                        id="paint0_hero_say_hi"
-                        x1="11.9995"
-                        y1="1.02051"
-                        x2="11.9995"
-                        y2="23.0005"
-                        gradientUnits="userSpaceOnUse"
-                      >
-                        <stop stopColor="#F26537" />
-                        <stop offset="1" stopColor="#0F3A5D" />
-                      </linearGradient>
-                    </defs>
-                  </svg>
-                  Say Hi!
+                  <TravelSuggestionSparkIcon
+                    height={24}
+                    width={24}
+                    theme="dark"
+                  />
+                  <span className="text-sm font-semibold text-zinc-800">
+                    Say Hi!
+                  </span>
                 </button>
               </div>
               <div className="hidden lg:block flex-1">
@@ -586,7 +572,11 @@ export default function HomePage() {
                       aria-hidden="true"
                     ></span>
                     <span className="relative z-[1] flex items-center justify-center gap-1.5 px-3.5 py-2.5 text-sm font-semibold text-white">
-                      <i className="ti ti-sparkles text-base text-white/95"></i>
+                      <TravelSuggestionSparkIcon
+                        height={18}
+                        width={18}
+                        theme="light"
+                      />
                       Hallo
                     </span>
                   </span>
@@ -596,7 +586,11 @@ export default function HomePage() {
                       aria-hidden="true"
                     ></span>
                     <span className="relative z-[1] flex items-center justify-center gap-1.5 px-3.5 py-2.5 text-sm font-semibold text-white">
-                      <i className="ti ti-sparkles text-base text-white/95"></i>
+                      <TravelSuggestionSparkIcon
+                        height={18}
+                        width={18}
+                        theme="light"
+                      />
                       こんにちは
                     </span>
                   </span>
@@ -606,7 +600,11 @@ export default function HomePage() {
                       aria-hidden="true"
                     ></span>
                     <span className="relative z-[1] flex items-center justify-center gap-1.5 px-3.5 py-2.5 text-sm font-semibold text-white">
-                      <i className="ti ti-sparkles text-base text-white/95"></i>
+                      <TravelSuggestionSparkIcon
+                        height={18}
+                        width={18}
+                        theme="light"
+                      />
                       你好
                     </span>
                   </span>
@@ -616,7 +614,11 @@ export default function HomePage() {
                       aria-hidden="true"
                     ></span>
                     <span className="relative z-[1] flex items-center justify-center gap-1.5 px-3.5 py-2.5 text-sm font-semibold text-white">
-                      <i className="ti ti-sparkles text-base text-white/95"></i>
+                      <TravelSuggestionSparkIcon
+                        height={18}
+                        width={18}
+                        theme="light"
+                      />
                       Bonjour
                     </span>
                   </span>
@@ -676,7 +678,11 @@ export default function HomePage() {
                           data-q={prompt}
                           onClick={() => handleOpenModal(prompt)}
                         >
-                          <AskIcon />
+                          <TravelSuggestionSparkIcon
+                            height={18}
+                            width={18}
+                            theme="dark"
+                          />
                           Ask
                         </button>
                       </div>
@@ -689,20 +695,36 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section>
+      <section className="pb-[clamp(48px,6vw,100px)]">
         <div className="container">
-          <div className="rounded-[15px] px-4 py-[clamp(40px,5vw,130px)] bg-my-travel bg-cover bg-center">
-            <div className="max-w-[600px] mx-auto">
-              <div className="flex w-full max-w-[732px] flex-col items-center gap-[15px] text-center">
-                <h2 className="text-balance text-xl sm:text-2xl md:text-3xl xl:text-4xl font-semibold text-white">
+          <div className="relative min-h-[min(320px,50vw)] overflow-hidden rounded-[15px] px-6 py-[clamp(48px,6vw,130px)] sm:min-h-[360px] sm:px-10">
+            <Image
+              src="/images/my-travel.png"
+              alt=""
+              fill
+              priority={false}
+              sizes="(max-width: 1280px) 100vw, 1200px"
+              className="object-cover object-center"
+              aria-hidden
+            />
+            <div
+              className="absolute inset-0 bg-gradient-to-b from-black/25 via-black/15 to-black/45"
+              aria-hidden
+            />
+            <div className="relative z-10 mx-auto max-w-[600px]">
+              <div className="mx-auto flex w-full max-w-[732px] flex-col items-center gap-[15px] text-center">
+                <h2 className="text-balance text-xl font-semibold text-white drop-shadow-md sm:text-2xl md:text-3xl xl:text-4xl">
                   MyTravelGeek for Brands
                 </h2>
-                <p className="text-sm text-white">
+                <p className="max-w-[520px] text-sm leading-relaxed text-white drop-shadow-sm sm:text-base">
                   We are the AI backbone of the travel industry. Build and
                   launch your own customized AI agents based on your brand,
                   content, data and partnerships.
                 </p>
-                <button className="btn btn-secondary w-[132px]">
+                <button
+                  type="button"
+                  className="btn btn-secondary mt-1 w-[132px] shadow-md"
+                >
                   Learn more
                 </button>
               </div>
