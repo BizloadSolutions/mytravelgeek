@@ -11,7 +11,7 @@ import AssistantMarkdown from "@/components/chat/AssistantMarkdown";
 import FlightsOptionInSideChat from "@/components/flights/FlightsOptionInSideChat";
 import TravelResourceLinks from "@/components/chat/TravelResourceLinks";
 import ChatHelp from "../ChatHelp";
-// import { useVoiceInput } from "@/hooks/useVoiceInput";
+import { useVoiceInput } from "@/hooks/useVoiceInput";
 import { api, getApiErrorMessage } from "@/lib/api-client";
 import type {
   ChatMessage,
@@ -97,19 +97,32 @@ export default function ChatModal({ open, initialQuery = "" }: ChatModalProps) {
   const messagesRef = useRef<ChatMessage[]>([]);
   const sentInitialRef = useRef<string | null>(null);
   const isSendingRef = useRef(false);
+  const inputRef = useRef("");
+  const sendMessageRef = useRef<(text: string) => Promise<void>>(
+    async () => {},
+  );
 
-  // Don't Remove this Commented code, it is for future voice input feature. It is commented out because the feature is not yet implemented and may cause errors if used in its current state.
-  // const {
-  //   interim,
-  //   listening,
-  //   supported: voiceSupported,
-  //   error: voiceError,
-  //   toggle: toggleVoice,
-  //   stop: stopVoice,
-  // } = useVoiceInput({
-  //   onResult: (finalText) =>
-  //     setInput((prev) => (prev ? `${prev} ${finalText}` : finalText).trimStart()),
-  // });
+  const {
+    listening,
+    supported: voiceSupported,
+    error: voiceError,
+    toggle: toggleVoice,
+    stop: stopVoice,
+  } = useVoiceInput({
+    onTranscript: (text) => {
+      inputRef.current = text;
+      setInput(text);
+    },
+    onSilence: () => {
+      const text = inputRef.current.trim();
+      if (text) void sendMessageRef.current(text);
+    },
+    silenceMs: 2000,
+  });
+
+  useEffect(() => {
+    inputRef.current = input;
+  }, [input]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({
@@ -132,9 +145,9 @@ export default function ChatModal({ open, initialQuery = "" }: ChatModalProps) {
       const text = rawText.trim();
       if (!text || isSendingRef.current) return;
 
-      // Don't Remove this Commented code, it is for future voice input feature. It is commented out because the feature is not yet implemented and may cause errors if used in its current state.
-      // stopVoice();
+      stopVoice();
       setInput("");
+      inputRef.current = "";
       isSendingRef.current = true;
       setIsLoading(true);
 
@@ -189,11 +202,12 @@ export default function ChatModal({ open, initialQuery = "" }: ChatModalProps) {
         setIsLoading(false);
       }
     },
-    [
-      // Don't Remove this Commented code, it is for future voice input feature. It is commented out because the feature is not yet implemented and may cause errors if used in its current state.
-      // stopVoice
-    ],
+    [stopVoice],
   );
+
+  useEffect(() => {
+    sendMessageRef.current = sendMessage;
+  }, [sendMessage]);
 
   useEffect(() => {
     if (!open) {
@@ -238,10 +252,6 @@ export default function ChatModal({ open, initialQuery = "" }: ChatModalProps) {
               onClick={() => sendMessage(prompt.text)}
               className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-[#f26537] px-2 py-1 text-xs font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {/* <i
-                className="ti ti-sparkles text-sm leading-none"
-                aria-hidden="true"
-              /> */}
               <TravelSuggestionSparkIcon height={18} width={18} theme="light" />
               {prompt.label}
             </button>
@@ -283,18 +293,11 @@ export default function ChatModal({ open, initialQuery = "" }: ChatModalProps) {
       </div>
 
       <div className="flex shrink-0 flex-col gap-1.5 self-stretch">
-        {/*  Don't Remove this Commented code, it is for future voice input feature. It is commented out because the feature is not yet implemented and may cause errors if used in its current state. */}
-        {/* {interim ? (
-          <p className="m-0 px-[15px] text-xs italic text-zinc-500">
-            ✏️ {interim}
-          </p>
-        ) : null}
-
         {voiceError ? (
           <p className="m-0 rounded-lg bg-red-50 px-[15px] py-1.5 text-xs text-red-600">
             {voiceError}
           </p>
-        ) : null} */}
+        ) : null}
 
         <form
           onSubmit={handleSubmit}
@@ -304,7 +307,11 @@ export default function ChatModal({ open, initialQuery = "" }: ChatModalProps) {
             ref={textareaRef}
             rows={1}
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={(e) => {
+              if (listening) stopVoice();
+              inputRef.current = e.target.value;
+              setInput(e.target.value);
+            }}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
@@ -312,19 +319,18 @@ export default function ChatModal({ open, initialQuery = "" }: ChatModalProps) {
               }
             }}
             placeholder={
-              false ? "Listening… speak now" : "Type your question here"
+              listening ? "Listening… speak now" : "Type your question here"
             }
             disabled={isLoading}
             className="max-h-[120px] min-h-[28px] min-w-0 flex-1 resize-none overflow-y-auto border-0 bg-transparent py-[3px] text-sm leading-[22px] text-zinc-900 outline-none ring-0 placeholder:text-zinc-600 focus:ring-0 disabled:opacity-60"
             aria-label="Chat message"
           />
-          {/*  Don't Remove this Commented code, it is for future voice input feature. It is commented out because the feature is not yet implemented and may cause errors if used in its current state. */}
-          {/* {voiceSupported ? (
+          {voiceSupported ? (
             <button
               type="button"
               onClick={toggleVoice}
               disabled={isLoading}
-              className={`flex size-[37px] shrink-0 items-center justify-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-50 ${
+              className={`flex sm:size-[37px] size-[28px] shrink-0 items-center justify-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-50 ${
                 listening
                   ? "animate-pulse bg-red-500 text-white"
                   : "bg-white text-[#f26537] ring-1 ring-black/10 hover:bg-zinc-50"
@@ -335,7 +341,7 @@ export default function ChatModal({ open, initialQuery = "" }: ChatModalProps) {
             >
               {listening ? (
                 <svg
-                  className="size-[16px]"
+                  className="sm:size-[16px] size-[13px]"
                   viewBox="0 0 24 24"
                   fill="currentColor"
                   aria-hidden="true"
@@ -344,7 +350,7 @@ export default function ChatModal({ open, initialQuery = "" }: ChatModalProps) {
                 </svg>
               ) : (
                 <svg
-                  className="size-[18px]"
+                  className="sm:size-[18px] size-[14px]"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -358,7 +364,7 @@ export default function ChatModal({ open, initialQuery = "" }: ChatModalProps) {
                 </svg>
               )}
             </button>
-          ) : null} */}
+          ) : null}
           <button
             type="submit"
             disabled={isLoading || !input.trim()}

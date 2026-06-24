@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useCallback,
   useEffect,
   useRef,
   useState,
@@ -11,6 +12,7 @@ import Image from "next/image";
 import MainTravelGeekModal from "@/components/modals/MainTravelGeekModal";
 import { trackHeroSearchSubmit } from "@/lib/analytics";
 import TravelSuggestionSparkIcon from "@/components/TravelSuggestionSparkIcon";
+import { useVoiceInput } from "@/hooks/useVoiceInput";
 
 const travelSuggestionData = [
   {
@@ -67,41 +69,53 @@ const partnerLogos = [
   { src: "images/tata.svg", alt: "tata" },
 ];
 
-const AskIcon = () => (
-  <svg
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-  >
-    <path
-      d="M10.6144 17.7956L11.492 15.7854C12.2731 13.9966 13.6789 12.5726 15.4325 11.7942L17.8482 10.7219C18.6162 10.381 18.6162 9.26368 17.8482 8.92277L15.5079 7.88394C13.7092 7.08552 12.2782 5.60881 11.5105 3.75894L10.6215 1.61673C10.2916 0.821766 9.19319 0.821768 8.8633 1.61673L7.97427 3.75892C7.20657 5.60881 5.77553 7.08552 3.97685 7.88394L1.63658 8.92277C0.868537 9.26368 0.868536 10.381 1.63658 10.7219L4.0523 11.7942C5.80589 12.5726 7.21171 13.9966 7.99275 15.7854L8.8704 17.7956C9.20776 18.5682 10.277 18.5682 10.6144 17.7956ZM19.4014 22.6899L19.6482 22.1242C20.0882 21.1156 20.8807 20.3125 21.8695 19.8732L22.6299 19.5353C23.0412 19.3526 23.0412 18.7549 22.6299 18.5722L21.9121 18.2532C20.8978 17.8026 20.0911 16.9698 19.6586 15.9269L19.4052 15.3156C19.2285 14.8896 18.6395 14.8896 18.4628 15.3156L18.2094 15.9269C17.777 16.9698 16.9703 17.8026 15.956 18.2532L15.2381 18.5722C14.8269 18.7549 14.8269 19.3526 15.2381 19.5353L15.9985 19.8732C16.9874 20.3125 17.7798 21.1156 18.2198 22.1242L18.4667 22.6899C18.6473 23.104 19.2207 23.104 19.4014 22.6899Z"
-      fill="url(#ask_icon_grad)"
-    />
-    <defs>
-      <linearGradient
-        id="ask_icon_grad"
-        x1="11.9995"
-        y1="1.02051"
-        x2="11.9995"
-        y2="23.0005"
-        gradientUnits="userSpaceOnUse"
-      >
-        <stop stopColor="#F26537" />
-        <stop offset="1" stopColor="#0F3A5D" />
-      </linearGradient>
-    </defs>
-  </svg>
-);
-
-const SUGGESTION_SPARK_PATH =
-  "M7.9608 13.3467L8.619 11.8391C9.20482 10.4975 10.2592 9.42945 11.5744 8.84565L13.3861 8.04143C13.9621 7.78575 13.9621 6.94776 13.3861 6.69208L11.6309 5.91296C10.2819 5.31414 9.20865 4.20661 8.63287 2.81921L7.96612 1.21255C7.7187 0.616324 6.89489 0.616326 6.64747 1.21255L5.9807 2.81919C5.40493 4.20661 4.33165 5.31414 2.98264 5.91296L1.22743 6.69208C0.651402 6.94776 0.651402 7.78575 1.22743 8.04143L3.03922 8.84565C4.35442 9.42945 5.40878 10.4975 5.99456 11.8391L6.6528 13.3467C6.90582 13.9262 7.70775 13.9262 7.9608 13.3467ZM14.551 17.0174L14.7361 16.5932C15.0661 15.8367 15.6605 15.2344 16.4021 14.9049L16.9724 14.6515C17.2809 14.5144 17.2809 14.0662 16.9724 13.9292L16.4341 13.6899C15.6733 13.352 15.0683 12.7274 14.7439 11.9452L14.5539 11.4867C14.4214 11.1672 13.9796 11.1672 13.8471 11.4867L13.657 11.9452C13.3327 12.7274 12.7277 13.352 11.967 13.6899L11.4286 13.9292C11.1202 14.0662 11.1202 14.5144 11.4286 14.6515L11.9989 14.9049C12.7405 15.2344 13.3348 15.8367 13.6648 16.5932L13.85 17.0174C13.9855 17.328 14.4155 17.328 14.551 17.0174Z";
-
 export default function HomePage() {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const searchQueryRef = useRef("");
+  const submitSearchRef = useRef<(query: string) => void>(() => {});
+
+  const {
+    listening,
+    supported: voiceSupported,
+    error: voiceError,
+    toggle: toggleVoice,
+    stop: stopVoice,
+  } = useVoiceInput({
+    onTranscript: (text) => {
+      searchQueryRef.current = text;
+      setSearchQuery(text);
+    },
+    onSilence: () => {
+      const text = searchQueryRef.current.trim();
+      if (text) submitSearchRef.current(text);
+    },
+    silenceMs: 2000,
+  });
+
+  useEffect(() => {
+    searchQueryRef.current = searchQuery;
+  }, [searchQuery]);
+
+  const submitSearch = useCallback(
+    (query: string) => {
+      const text = query.trim();
+      if (!text) return;
+
+      stopVoice();
+      setSearchQuery(text);
+      searchQueryRef.current = text;
+      trackHeroSearchSubmit(text);
+      setIsOpen(true);
+    },
+    [stopVoice],
+  );
+
+  useEffect(() => {
+    submitSearchRef.current = submitSearch;
+  }, [submitSearch]);
 
   // Auto-grow the search field across lines, then let it scroll once it hits
   // the max height (capped via CSS). Works the same on mobile and desktop.
@@ -113,14 +127,16 @@ export default function HomePage() {
   }, [searchQuery]);
 
   const handleOpenModal = (query = "") => {
-    if (query) setSearchQuery(query);
+    if (query) {
+      setSearchQuery(query);
+      searchQueryRef.current = query;
+    }
     setIsOpen(true);
   };
 
   const handleFormSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    trackHeroSearchSubmit(searchQuery);
-    handleOpenModal(searchQuery);
+    submitSearch(searchQuery);
   };
 
   return (
@@ -164,6 +180,7 @@ export default function HomePage() {
                   fill="white"
                 />
               </svg>
+
               <form
                 className="relative z-20 mx-auto flex min-h-[53px] w-full max-w-[800px] flex-1 items-center gap-2 rounded-[28px] border border-solid border-black/10 bg-[var(--bg-background-muted)] py-1.5 pl-[15px] pr-1.5 shadow-[0_2px_5px_rgba(0,0,0,0.10)]"
                 action="#"
@@ -192,7 +209,16 @@ export default function HomePage() {
                     name="q"
                     rows={1}
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onChange={(e) => {
+                      if (listening) stopVoice();
+                      searchQueryRef.current = e.target.value;
+                      setSearchQuery(e.target.value);
+                    }}
+                    placeholder={
+                      listening
+                        ? "Listening… speak now"
+                        : "Ask me anything about travel!"
+                    }
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && !e.shiftKey) {
                         e.preventDefault();
@@ -201,10 +227,51 @@ export default function HomePage() {
                     }}
                     enterKeyHint="search"
                     autoComplete="off"
-                    placeholder="Ask me anything about travel!"
                     className="max-h-[120px] min-h-[24px] min-w-0 flex-1 resize-none overflow-y-auto border-0 bg-transparent py-0 text-sm font-normal leading-6 text-zinc-900 outline-none ring-0 placeholder:text-zinc-600 focus:ring-0"
                   />
                 </div>
+                {voiceSupported ? (
+                  <button
+                    type="button"
+                    onClick={toggleVoice}
+                    disabled={isLoading}
+                    className={`flex sm:size-[37px] size-[28px] shrink-0 items-center justify-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                      listening
+                        ? "animate-pulse bg-red-500 text-white"
+                        : "bg-white text-[#f26537] ring-1 ring-black/10 hover:bg-zinc-50"
+                    }`}
+                    aria-label={
+                      listening ? "Stop recording" : "Start voice input"
+                    }
+                    aria-pressed={listening}
+                    title={listening ? "Stop recording" : "Start voice input"}
+                  >
+                    {listening ? (
+                      <svg
+                        className="sm:size-[16px] size-[13px]"
+                        viewBox="0 0 24 24"
+                        fill="currentColor"
+                        aria-hidden="true"
+                      >
+                        <rect x="6" y="6" width="12" height="12" rx="2" />
+                      </svg>
+                    ) : (
+                      <svg
+                        className="sm:size-[18px] size-[14px]"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.6"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                      >
+                        <path d="M12 1.75a3.25 3.25 0 0 0-3.25 3.25v6a3.25 3.25 0 0 0 6.5 0v-6A3.25 3.25 0 0 0 12 1.75Z" />
+                        <path d="M5 11a7 7 0 0 0 14 0M12 18v4" />
+                      </svg>
+                    )}
+                  </button>
+                ) : null}
                 <button
                   type="submit"
                   className="inline-flex sm:size-[43px] size-[31px] shrink-0 items-center justify-center rounded-full bg-[#f26537] text-white transition-opacity hover:opacity-90"
@@ -230,6 +297,7 @@ export default function HomePage() {
                   </svg>
                 </button>
               </form>
+
               <div
                 className="pointer-events-none absolute sm:inset-x-[68px] inset-x-[40px] top-0 z-0 flex justify-center"
                 aria-hidden="true"
@@ -249,6 +317,11 @@ export default function HomePage() {
               </svg>
             </div>
           </div>
+          {voiceError ? (
+            <p className="mx-auto mt-2 max-w-[800px] rounded-lg bg-red-50 px-[15px] py-1.5 text-center text-xs text-red-600">
+              {voiceError}
+            </p>
+          ) : null}
 
           <div
             className="mt-2.5 md:mb-[clamp(20px,4vw,48px)] flex w-full min-w-0 justify-center overflow-x-auto overflow-y-hidden overscroll-x-contain scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden sm:mx-0 sm:px-0"
