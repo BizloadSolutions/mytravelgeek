@@ -17,6 +17,7 @@ function loadEnvFiles() {
 
 export class Keys {
   SECRET?: string;
+  API_TOKEN?: string;
   ANTHROPIC_MODEL!: string;
   ANTHROPIC_MAX_TOKENS!: string;
   ANTHROPIC_MAX_TOKENS_BRIEF!: string;
@@ -42,6 +43,7 @@ export class Keys {
 
   prepareKeys() {
     this.SECRET = readEnv("SECRET");
+    this.API_TOKEN = readEnv("API_TOKEN");
     this.PORT = readEnv("PORT") ?? "";
     this.BACKEND_URL = readEnv("BACKEND_URL");
     this.ANTHROPIC_MODEL = readEnv("ANTHROPIC_MODEL") ?? "";
