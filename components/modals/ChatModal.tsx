@@ -8,18 +8,20 @@ import {
   type FormEvent,
 } from "react";
 import AssistantMarkdown from "@/components/chat/AssistantMarkdown";
+import ListenButton from "@/components/chat/ListenButton";
 import FlightsOptionInSideChat from "@/components/flights/FlightsOptionInSideChat";
 import TravelResourceLinks from "@/components/chat/TravelResourceLinks";
 import ChatHelp from "../ChatHelp";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
-import { api, getApiErrorMessage } from "@/lib/api-client";
+import { useSpeechOutput } from "@/hooks/useSpeechOutput";
+import { sendChatMessage } from "@/lib/chat-api";
+import { getApiErrorMessage } from "@/lib/api-client";
 import type {
   ChatMessage,
-  ChatResponse,
   FlightSearchFallback,
   TravelLink,
 } from "@/lib/all-types";
-import { isShowMapVIew } from "../utils/helpers";
+import { DEFAULT_SILENCE_MS, isShowMapVIew } from "../utils/helpers";
 import TravelSuggestionSparkIcon from "../TravelSuggestionSparkIcon";
 
 const QUICK_PROMPTS = [
@@ -48,11 +50,20 @@ function AssistantMessage({
   content,
   flightFallback,
   travelLinks,
+  messageId,
+  speakingId,
+  onListen,
+  onStopListen,
 }: {
   content: string;
   flightFallback?: FlightSearchFallback;
   travelLinks?: TravelLink[];
+  messageId: string;
+  speakingId: string | null;
+  onListen: (text: string, id: string) => void;
+  onStopListen: () => void;
 }) {
+  const isSpeaking = speakingId === messageId;
   const links =
     travelLinks ??
     (flightFallback
@@ -66,8 +77,17 @@ function AssistantMessage({
       : undefined);
 
   return (
-    <div className="flex w-fit lg:max-w-[80%] max-w-[90%] flex-col gap-3 rounded-br-lg rounded-tl-lg rounded-tr-lg bg-[var(--primary-50)] p-3">
-      <AssistantMarkdown content={content} />
+    <div className="relative flex w-fit lg:max-w-[80%] max-w-[90%] flex-col gap-3 rounded-br-lg rounded-tl-lg rounded-tr-lg bg-[var(--primary-50)] p-3">
+      <ListenButton
+        active={isSpeaking}
+        onClick={() =>
+          isSpeaking ? onStopListen() : void onListen(content, messageId)
+        }
+        className="absolute right-2 top-2"
+      />
+      <div className="pr-8">
+        <AssistantMarkdown content={content} />
+      </div>
       {links?.length ? <TravelResourceLinks links={links} /> : null}
     </div>
   );
@@ -101,6 +121,14 @@ export default function ChatModal({ open, initialQuery = "" }: ChatModalProps) {
   const sendMessageRef = useRef<(text: string) => Promise<void>>(
     async () => {},
   );
+  const {
+    speakingId,
+    autoPlay,
+    autoPlayRef,
+    speak,
+    stop: stopSpeech,
+    toggleAutoPlay,
+  } = useSpeechOutput();
 
   const {
     listening,
@@ -117,7 +145,7 @@ export default function ChatModal({ open, initialQuery = "" }: ChatModalProps) {
       const text = inputRef.current.trim();
       if (text) void sendMessageRef.current(text);
     },
-    silenceMs: 2000,
+    silenceMs: DEFAULT_SILENCE_MS,
   });
 
   useEffect(() => {
@@ -146,6 +174,7 @@ export default function ChatModal({ open, initialQuery = "" }: ChatModalProps) {
       if (!text || isSendingRef.current) return;
 
       stopVoice();
+      stopSpeech();
       setInput("");
       inputRef.current = "";
       isSendingRef.current = true;
@@ -157,14 +186,7 @@ export default function ChatModal({ open, initialQuery = "" }: ChatModalProps) {
       setMessages(conversation);
 
       try {
-        const { data } = await api.post<ChatResponse>("/chat", {
-          messages: conversation.map(({ role, content }) => ({
-            role,
-            content,
-          })),
-        });
-
-        console.log("data -------------------------------->", data);
+        const data = await sendChatMessage(conversation);
 
         const nextMessages: ChatMessage[] = [
           ...conversation,
@@ -182,6 +204,10 @@ export default function ChatModal({ open, initialQuery = "" }: ChatModalProps) {
         ];
         messagesRef.current = nextMessages;
         setMessages(nextMessages);
+
+        if (autoPlayRef.current && data.reply.trim()) {
+          void speak(data.reply, `assistant-${nextMessages.length - 1}`);
+        }
       } catch (error) {
         const message = getApiErrorMessage(
           error,
@@ -197,12 +223,17 @@ export default function ChatModal({ open, initialQuery = "" }: ChatModalProps) {
         ];
         messagesRef.current = nextMessages;
         setMessages(nextMessages);
+
+        const errorReply = nextMessages[nextMessages.length - 1]?.content ?? "";
+        if (autoPlayRef.current && errorReply.trim()) {
+          void speak(errorReply, `assistant-${nextMessages.length - 1}`);
+        }
       } finally {
         isSendingRef.current = false;
         setIsLoading(false);
       }
     },
-    [stopVoice],
+    [stopVoice, stopSpeech, speak, autoPlayRef],
   );
 
   useEffect(() => {
@@ -212,6 +243,7 @@ export default function ChatModal({ open, initialQuery = "" }: ChatModalProps) {
   useEffect(() => {
     if (!open) {
       sentInitialRef.current = null;
+      stopSpeech();
       return;
     }
 
@@ -220,7 +252,7 @@ export default function ChatModal({ open, initialQuery = "" }: ChatModalProps) {
 
     sentInitialRef.current = query;
     sendMessage(query);
-  }, [open, initialQuery, sendMessage]);
+  }, [open, initialQuery, sendMessage, stopSpeech]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -283,6 +315,10 @@ export default function ChatModal({ open, initialQuery = "" }: ChatModalProps) {
               content={message.content}
               flightFallback={message.flightFallback}
               travelLinks={message.travelLinks}
+              messageId={`assistant-${index}`}
+              speakingId={speakingId}
+              onListen={(text, id) => void speak(text, id)}
+              onStopListen={stopSpeech}
             />
           ),
         )}
@@ -293,6 +329,34 @@ export default function ChatModal({ open, initialQuery = "" }: ChatModalProps) {
       </div>
 
       <div className="flex shrink-0 flex-col gap-1.5 self-stretch">
+        <div className="flex items-center justify-end px-1">
+          <button
+            type="button"
+            onClick={toggleAutoPlay}
+            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition ${
+              autoPlay
+                ? "bg-[#f26537]/10 text-[#f26537]"
+                : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+            }`}
+            aria-pressed={autoPlay}
+          >
+            <svg
+              className="size-3.5"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M11 5 6 9H3v6h3l5 4V5Z" />
+              <path d="M15.5 8.5a5 5 0 0 1 0 7" />
+            </svg>
+            {autoPlay ? "Auto-listen on" : "Auto-listen off"}
+          </button>
+        </div>
+
         {voiceError ? (
           <p className="m-0 rounded-lg bg-red-50 px-[15px] py-1.5 text-xs text-red-600">
             {voiceError}

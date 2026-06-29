@@ -13,11 +13,6 @@ export async function sendChatMessage(
       throw new Error("Unexpected response from Travel Geek AI.");
     }
 
-    console.log(
-      "------------------------- data from sendChatMessage ------------------------>",
-      data,
-    );
-
     return data;
   } catch (error) {
     throw new Error(

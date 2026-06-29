@@ -481,6 +481,10 @@ dialog.modal .modal_sidebar__btn .ti {
   line-height: 1;
 }
 
+#modal-chat-panel {
+  height: calc(100vh - 52px) !important;
+}
+
 @media (min-width: 768px) {
   dialog.modal .modal_content {
     flex-direction: row;

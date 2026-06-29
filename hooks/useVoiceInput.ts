@@ -1,5 +1,11 @@
 "use client";
 
+import {
+  DEFAULT_SILENCE_MS,
+  hasTrailingThanks,
+  STOP_ON_THANKS_MS,
+  stripTrailingThanks,
+} from "@/components/utils/helpers";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 interface SpeechRecognitionAlternative {
@@ -49,7 +55,6 @@ declare global {
 
 const LANG = "en-US";
 const RESTART_DELAY_MS = 120;
-const DEFAULT_SILENCE_MS = 2000;
 
 function buildTranscript(committed: string, interim: string): string {
   const live = interim.trim();
@@ -166,16 +171,30 @@ export function useVoiceInput({
     return committedRef.current;
   }, []);
 
-  const scheduleSilenceCheck = useCallback(() => {
-    if (!onSilenceRef.current) return;
+  const scheduleSilenceCheck = useCallback(
+    (full: string) => {
+      if (!onSilenceRef.current) return;
 
-    clearSilenceTimer();
-    silenceTimerRef.current = setTimeout(() => {
-      if (!activeRef.current || !hasSpokenRef.current) return;
-      flushInterim();
-      onSilenceRef.current?.();
-    }, silenceMsRef.current);
-  }, [clearSilenceTimer, flushInterim]);
+      clearSilenceTimer();
+      const delay = hasTrailingThanks(full)
+        ? STOP_ON_THANKS_MS
+        : silenceMsRef.current;
+
+      silenceTimerRef.current = setTimeout(() => {
+        if (!activeRef.current || !hasSpokenRef.current) return;
+
+        let text = flushInterim();
+        if (hasTrailingThanks(text)) {
+          text = stripTrailingThanks(text);
+          committedRef.current = text;
+          onTranscriptRef.current?.(text);
+        }
+
+        onSilenceRef.current?.();
+      }, delay);
+    },
+    [clearSilenceTimer, flushInterim],
+  );
 
   const getRecognizer = useCallback((): SpeechRecognitionConstructor => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -216,7 +235,7 @@ export function useVoiceInput({
       const full = publishTranscript();
       if (full.trim()) {
         hasSpokenRef.current = true;
-        scheduleSilenceCheck();
+        scheduleSilenceCheck(full);
       }
     };
 

@@ -3,6 +3,9 @@ import GoogleAnalytics from "@/components/GoogleAnalytics";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import SuppressExtensionHydrationWarning from "@/components/SuppressExtensionHydrationWarning";
+import { CssReadyScript, CssReadyStyle } from "@/components/CssReadyGate";
+
+// Test commit here
 
 /** Preload chain used by custom.css @import — files themselves are unchanged. */
 const PUBLIC_CSS_PRELOAD = [
@@ -16,7 +19,6 @@ export const metadata: Metadata = {
   title: "My Travel Geek AI",
   description: "Your Personal Travel Expert, Anytime",
   icons: {
-    // PNG first — works on iOS, Android, and browsers that ignore SVG/media queries.
     icon: [
       {
         url: "/images/logo/icon-coloured.png",
@@ -52,6 +54,8 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head suppressHydrationWarning>
+        <CssReadyStyle />
+
         <script defer src="/js/strip-extension-attrs.js" />
         <meta name="msapplication-TileColor" content="#0f3a5d" />
         <meta
@@ -87,6 +91,8 @@ export default function RootLayout({
           rel="stylesheet"
           href="https://cdn.jsdelivr.net/gh/lipis/flag-icons@7.2.3/css/flag-icons.min.css"
         />
+
+        <CssReadyScript />
       </head>
 
       <body suppressHydrationWarning>

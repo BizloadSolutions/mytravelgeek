@@ -1,10 +1,14 @@
 import axios, { isAxiosError } from "axios";
 
 const backendOrigin = process.env.NEXT_PUBLIC_BACKEND_URL!.replace(/\/$/, "");
+const apiToken = process.env.NEXT_PUBLIC_API_TOKEN?.trim() ?? "";
 
 export const api = axios.create({
   baseURL: `${backendOrigin}/api`,
-  headers: { "Content-Type": "application/json" },
+  headers: {
+    "Content-Type": "application/json",
+    ...(apiToken ? { "x-api-token": apiToken } : {}),
+  },
 });
 
 export function getApiErrorMessage(error: unknown, fallback: string): string {

@@ -13,6 +13,7 @@ import MainTravelGeekModal from "@/components/modals/MainTravelGeekModal";
 import { trackHeroSearchSubmit } from "@/lib/analytics";
 import TravelSuggestionSparkIcon from "@/components/TravelSuggestionSparkIcon";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
+import { DEFAULT_SILENCE_MS } from "@/components/utils/helpers";
 
 const travelSuggestionData = [
   {
@@ -92,7 +93,7 @@ export default function HomePage() {
       const text = searchQueryRef.current.trim();
       if (text) submitSearchRef.current(text);
     },
-    silenceMs: 2000,
+    silenceMs: DEFAULT_SILENCE_MS,
   });
 
   useEffect(() => {
