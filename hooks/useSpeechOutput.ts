@@ -1,7 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { markdownToSpeechText } from "@/lib/speech-text";
+import {
+  isLikelyMp3,
+  markdownToSpeechText,
+  splitSpeechText,
+} from "@/lib/speech-text";
 
 const AUTO_LISTEN_KEY = "travelgeek-auto-listen";
 
@@ -12,74 +16,80 @@ function readAutoListen(): boolean {
 
 export function useSpeechOutput() {
   const [speakingId, setSpeakingId] = useState<string | null>(null);
-  const [autoPlay, setAutoPlay] = useState(false);
+  const [autoPlay, setAutoPlay] = useState(readAutoListen);
 
-  const autoPlayRef = useRef(false);
+  const autoPlayRef = useRef(readAutoListen());
+  const sessionRef = useRef(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const urlRef = useRef<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
-
-  useEffect(() => {
-    const stored = readAutoListen();
-    autoPlayRef.current = stored;
-    setAutoPlay(stored);
-  }, []);
 
   useEffect(() => {
     autoPlayRef.current = autoPlay;
   }, [autoPlay]);
 
   const stop = useCallback(() => {
+    sessionRef.current += 1;
     abortRef.current?.abort();
     abortRef.current = null;
     audioRef.current?.pause();
     audioRef.current = null;
-    if (urlRef.current) {
-      URL.revokeObjectURL(urlRef.current);
-      urlRef.current = null;
-    }
     setSpeakingId(null);
   }, []);
 
-  const speak = useCallback(
-    async (markdown: string, id: string) => {
-      const text = markdownToSpeechText(markdown);
-      if (!text) return;
+  const speak = useCallback(async (markdown: string, id: string) => {
+    const text = markdownToSpeechText(markdown);
+    if (!text) return;
 
-      stop();
-      setSpeakingId(id);
+    sessionRef.current += 1;
+    const session = sessionRef.current;
+    abortRef.current?.abort();
+    audioRef.current?.pause();
 
-      const controller = new AbortController();
-      abortRef.current = controller;
+    setSpeakingId(id);
+    const controller = new AbortController();
+    abortRef.current = controller;
 
-      try {
+    try {
+      for (const chunk of splitSpeechText(text)) {
+        if (sessionRef.current !== session) return;
+
         const res = await fetch("/api/tts", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text }),
+          body: JSON.stringify({ text: chunk }),
           signal: controller.signal,
         });
 
-        if (!res.ok) throw new Error("TTS request failed");
+        const buffer = await res.arrayBuffer();
+        if (!res.ok || !isLikelyMp3(buffer)) continue;
 
-        const blob = await res.blob();
-        if (abortRef.current !== controller) return;
-
-        const url = URL.createObjectURL(blob);
-        urlRef.current = url;
-
+        const url = URL.createObjectURL(
+          new Blob([buffer], { type: "audio/mpeg" }),
+        );
         const audio = new Audio(url);
         audioRef.current = audio;
-        audio.onended = () => stop();
-        audio.onerror = () => stop();
 
-        await audio.play();
-      } catch (err) {
-        if ((err as Error).name !== "AbortError") stop();
+        await new Promise<void>((resolve, reject) => {
+          audio.onended = () => {
+            URL.revokeObjectURL(url);
+            resolve();
+          };
+          audio.onerror = () => {
+            URL.revokeObjectURL(url);
+            reject(new Error("Playback failed"));
+          };
+          void audio.play().catch(reject);
+        });
       }
-    },
-    [stop],
-  );
+    } catch (err) {
+      if ((err as Error).name !== "AbortError") stop();
+    } finally {
+      if (sessionRef.current === session) {
+        abortRef.current = null;
+        setSpeakingId(null);
+      }
+    }
+  }, [stop]);
 
   const toggleAutoPlay = useCallback(() => {
     setAutoPlay((on) => {
