@@ -3,7 +3,15 @@ import { MsEdgeTTS, OUTPUT_FORMAT, VOLUME } from "msedge-tts";
 import type { Readable } from "stream";
 
 const VOICE = "en-IN-NeerjaNeural";
-const MAX_CHARS = 6000;
+
+/** msedge-tts returns empty audio for "&" and some symbols. */
+function sanitizeForTts(text: string): string {
+  return text
+    .replace(/&/g, " and ")
+    .replace(/---+/g, ". ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
 @Injectable()
 export class TtsService {
@@ -17,7 +25,7 @@ export class TtsService {
   }
 
   async synthesize(rawText: string): Promise<Buffer> {
-    const text = rawText.trim().slice(0, MAX_CHARS);
+    const text = sanitizeForTts(rawText);
     if (!text) {
       throw new BadRequestException("Text is required for speech synthesis.");
     }
@@ -35,7 +43,12 @@ export class TtsService {
         volume: VOLUME.SOFT,
       });
 
-      return await this.streamToBuffer(audioStream);
+      const audio = await this.streamToBuffer(audioStream);
+      if (audio.byteLength < 128) {
+        throw new BadRequestException("Speech synthesis returned invalid audio.");
+      }
+
+      return audio;
     } finally {
       tts.close();
     }
