@@ -212,6 +212,8 @@ export function useVoiceInput({
     rec.interimResults = true;
 
     rec.onresult = (e) => {
+      if (!activeRef.current) return;
+
       let finalChunk = "";
       let interimChunk = "";
 
@@ -222,10 +224,10 @@ export function useVoiceInput({
       }
 
       if (finalChunk) {
-        committedRef.current = buildTranscript(
-          committedRef.current,
-          finalChunk,
-        );
+        const trimmed = finalChunk.trim();
+        if (trimmed && !committedRef.current.trim().endsWith(trimmed)) {
+          committedRef.current = buildTranscript(committedRef.current, trimmed);
+        }
         onResultRef.current?.(finalChunk);
       }
 
@@ -346,10 +348,12 @@ export function useVoiceInput({
     setListening(false);
     clearRestartTimer();
     clearSilenceTimer();
+    committedRef.current = "";
     hasSpokenRef.current = false;
     interimLiveRef.current = "";
     setInterim("");
-    recRef.current?.stop();
+    onTranscriptRef.current?.("");
+    recRef.current?.abort();
     recRef.current = null;
   }, [clearRestartTimer, clearSilenceTimer]);
 
