@@ -16,12 +16,18 @@ function readAutoListen(): boolean {
 
 export function useSpeechOutput() {
   const [speakingId, setSpeakingId] = useState<string | null>(null);
-  const [autoPlay, setAutoPlay] = useState(readAutoListen);
+  const [autoPlay, setAutoPlay] = useState(false);
 
-  const autoPlayRef = useRef(readAutoListen());
+  const autoPlayRef = useRef(false);
   const sessionRef = useRef(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    const stored = readAutoListen();
+    setAutoPlay(stored);
+    autoPlayRef.current = stored;
+  }, []);
 
   useEffect(() => {
     autoPlayRef.current = autoPlay;
@@ -36,60 +42,63 @@ export function useSpeechOutput() {
     setSpeakingId(null);
   }, []);
 
-  const speak = useCallback(async (markdown: string, id: string) => {
-    const text = markdownToSpeechText(markdown);
-    if (!text) return;
+  const speak = useCallback(
+    async (markdown: string, id: string) => {
+      const text = markdownToSpeechText(markdown);
+      if (!text) return;
 
-    sessionRef.current += 1;
-    const session = sessionRef.current;
-    abortRef.current?.abort();
-    audioRef.current?.pause();
+      sessionRef.current += 1;
+      const session = sessionRef.current;
+      abortRef.current?.abort();
+      audioRef.current?.pause();
 
-    setSpeakingId(id);
-    const controller = new AbortController();
-    abortRef.current = controller;
+      setSpeakingId(id);
+      const controller = new AbortController();
+      abortRef.current = controller;
 
-    try {
-      for (const chunk of splitSpeechText(text)) {
-        if (sessionRef.current !== session) return;
+      try {
+        for (const chunk of splitSpeechText(text)) {
+          if (sessionRef.current !== session) return;
 
-        const res = await fetch("/api/tts", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text: chunk }),
-          signal: controller.signal,
-        });
+          const res = await fetch("/api/tts", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: chunk }),
+            signal: controller.signal,
+          });
 
-        const buffer = await res.arrayBuffer();
-        if (!res.ok || !isLikelyMp3(buffer)) continue;
+          const buffer = await res.arrayBuffer();
+          if (!res.ok || !isLikelyMp3(buffer)) continue;
 
-        const url = URL.createObjectURL(
-          new Blob([buffer], { type: "audio/mpeg" }),
-        );
-        const audio = new Audio(url);
-        audioRef.current = audio;
+          const url = URL.createObjectURL(
+            new Blob([buffer], { type: "audio/mpeg" }),
+          );
+          const audio = new Audio(url);
+          audioRef.current = audio;
 
-        await new Promise<void>((resolve, reject) => {
-          audio.onended = () => {
-            URL.revokeObjectURL(url);
-            resolve();
-          };
-          audio.onerror = () => {
-            URL.revokeObjectURL(url);
-            reject(new Error("Playback failed"));
-          };
-          void audio.play().catch(reject);
-        });
+          await new Promise<void>((resolve, reject) => {
+            audio.onended = () => {
+              URL.revokeObjectURL(url);
+              resolve();
+            };
+            audio.onerror = () => {
+              URL.revokeObjectURL(url);
+              reject(new Error("Playback failed"));
+            };
+            void audio.play().catch(reject);
+          });
+        }
+      } catch (err) {
+        if ((err as Error).name !== "AbortError") stop();
+      } finally {
+        if (sessionRef.current === session) {
+          abortRef.current = null;
+          setSpeakingId(null);
+        }
       }
-    } catch (err) {
-      if ((err as Error).name !== "AbortError") stop();
-    } finally {
-      if (sessionRef.current === session) {
-        abortRef.current = null;
-        setSpeakingId(null);
-      }
-    }
-  }, [stop]);
+    },
+    [stop],
+  );
 
   const toggleAutoPlay = useCallback(() => {
     setAutoPlay((on) => {

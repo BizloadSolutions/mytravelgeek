@@ -29,7 +29,7 @@ export default function Header() {
   return (
     <header
       id="site-header"
-      className="site-header w-full fixed top-0 z-50 transition-[background,box-shadow,backdrop-filter] duration-300 ease-out"
+      className={`site-header w-full fixed top-0 z-50 transition-[background,box-shadow,backdrop-filter] duration-300 ease-out${isScrolled ? " is-scrolled" : ""}`}
     >
       <div className="container">
         <div className="flex items-center justify-between gap-5 py-[15px]">

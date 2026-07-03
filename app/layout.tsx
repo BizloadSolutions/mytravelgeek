@@ -55,8 +55,9 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head suppressHydrationWarning>
         <CssReadyStyle />
+        {/* Sync in head (no defer) — registers MutationObserver before body parses */}
+        <script src="/js/strip-extension-attrs.js" />
 
-        <script defer src="/js/strip-extension-attrs.js" />
         <meta name="msapplication-TileColor" content="#0f3a5d" />
         <meta
           name="msapplication-TileImage"
@@ -116,6 +117,14 @@ export default function RootLayout({
         <script src="/js/modal.js" />
         <script src="/js/custom.js" />
         <script src="/js/travelpayout.js" />
+
+        {/* Impact.com tracking script */}
+        <script
+          type="text/javascript"
+          dangerouslySetInnerHTML={{
+            __html: `(function(i,m,p,a,c,t){c.ire_o=p;c[p]=c[p]||function(){(c[p].a=c[p].a||[]).push(arguments)};t=a.createElement(m);var z=a.getElementsByTagName(m)[0];t.async=1;t.src=i;z.parentNode.insertBefore(t,z)})('https://utt.impactcdn.com/P-A7390400-e0d6-41f8-b533-46b83497f4071.js','script','impactStat',document,window);impactStat('transformLinks');impactStat('trackImpression');`,
+          }}
+        />
       </body>
     </html>
   );

@@ -1,14 +1,4 @@
 document.addEventListener("DOMContentLoaded", function () {
-  var header = document.getElementById("site-header");
-  if (header) {
-    var scrollThreshold = 8;
-    var onScroll = function () {
-      header.classList.toggle("is-scrolled", window.scrollY > scrollThreshold);
-    };
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-  }
-
   var root = document.getElementById("travel-suggestions");
   if (!root) return;
 
