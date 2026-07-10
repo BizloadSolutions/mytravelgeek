@@ -11,9 +11,11 @@ import {
 import Image from "next/image";
 import MainTravelGeekModal from "@/components/modals/MainTravelGeekModal";
 import { trackHeroSearchSubmit } from "@/lib/analytics";
+import { OPEN_CHAT_EVENT, type OpenChatDetail } from "@/lib/chat-modal";
 import TravelSuggestionSparkIcon from "@/components/TravelSuggestionSparkIcon";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
 import { DEFAULT_SILENCE_MS } from "@/components/utils/helpers";
+import { MERCOR_REFERRAL_URL } from "@/lib/mercor";
 
 const travelSuggestionData = [
   {
@@ -127,22 +129,38 @@ export default function HomePage() {
     el.style.height = `${el.scrollHeight}px`;
   }, [searchQuery]);
 
-  const handleOpenModal = (query = "") => {
+  const handleOpenModal = useCallback((query = "") => {
     if (query) {
       setSearchQuery(query);
       searchQueryRef.current = query;
     }
     setIsOpen(true);
-  };
+  }, []);
+
+  useEffect(() => {
+    const onOpenChat = (event: Event) => {
+      const query = (event as CustomEvent<OpenChatDetail>).detail?.query ?? "";
+      handleOpenModal(query);
+    };
+    window.addEventListener(OPEN_CHAT_EVENT, onOpenChat);
+    return () => window.removeEventListener(OPEN_CHAT_EVENT, onOpenChat);
+  }, [handleOpenModal]);
 
   const handleFormSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     submitSearch(searchQuery);
   };
 
+  const scrollToHero = useCallback(() => {
+    document.getElementById("hero")?.scrollIntoView({ behavior: "smooth" });
+  }, []);
+
   return (
     <main className="flex-1">
-      <section className="banner-section w-full relative">
+      <section
+        id="hero"
+        className="banner-section w-full relative scroll-mt-[70px]"
+      >
         <div className="w-full min-h-[300px] aspect-[1728/586]">
           <Image
             src="/images/banner.png"
@@ -365,41 +383,133 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="pt-[clamp(20px,5vw,60px)] lg:bg-[linear-gradient(0deg,#F4F4F5_0%,#FFFFFF_100%)]">
+      <section className="-mt-6 pt-[clamp(20px,5vw,60px)]">
         <div className="container">
-          <div className="grid grid-cols-1 gap-8 lg:grid-cols-12 sm:gap-14">
-            <div className="order-2 sm:order-1 lg:col-span-8 sm:flex">
-              <div className="flex w-full flex-col sm:gap-5 gap-2 lg:max-w-[555px] xl:py-[60px] lg:py-[20px]">
-                <h2 className="text-balance text-xl sm:text-2xl md:text-3xl xl:text-4xl font-semibold leading-tight ">
-                  Travel Smarter. Explore Better.
-                </h2>
-                <div className="flex flex-col gap-4 text-sm font-normal leading-relaxed text-zinc-600">
-                  <p>
-                    Welcome to My Travel Geek — your intelligent travel
-                    companion built for modern explorers. We believe planning a
-                    trip should feel exciting, not overwhelming. That's why we
-                    created a platform that simplifies every step of your
-                    journey with smart recommendations, real-time travel
-                    insights, and personalized experiences.
+          <div className="relative overflow-hidden rounded-[24px] bg-[#0B0B0F] shadow-[0_20px_60px_rgba(99,102,241,0.18)]">
+            <div
+              className="pointer-events-none absolute -right-20 -top-24 size-80 rounded-full bg-[#7C76FF]/30 blur-[100px]"
+              aria-hidden="true"
+            />
+            <div
+              className="pointer-events-none absolute -bottom-24 -left-16 size-96 rounded-full bg-[#6366F1]/20 blur-[120px]"
+              aria-hidden="true"
+            />
+
+            <div className="relative grid grid-cols-1 items-center gap-6 p-5 sm:gap-8 sm:p-8 lg:grid-cols-12 lg:gap-12 lg:p-14">
+              <div className="flex flex-col gap-5 sm:gap-6 lg:col-span-7">
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center gap-3 sm:gap-4">
+                    <h2 className="text-balance text-xl font-semibold leading-tight text-white sm:text-2xl md:text-3xl xl:text-[2.5rem]">
+                      Find work from home jobs that fit your skills
+                    </h2>
+                    <img
+                      src="https://work.mercor.com/icon.svg"
+                      alt="Mercor"
+                      width={56}
+                      height={56}
+                      className="size-12 shrink-0 sm:size-12 md:size-14 md:hidden flex"
+                    />
+                  </div>
+                  <p className="max-w-xl text-sm leading-relaxed text-zinc-200 sm:text-base">
+                    Discover remote roles with flexible hours, global companies,
+                    and opportunities you can do from anywhere — no commute, no
+                    office required.
                   </p>
-                  <p>
-                    Whether you're planning a quick getaway, a business trip, or
-                    a multi-country adventure, My Travel Geek helps you discover
-                    the best flights, stays, restaurants, and experiences — all
-                    in one place.
+                </div>
+
+                <ul className="md:flex flex-col gap-2 sm:grid sm:grid-cols-3 sm:gap-2.5 hidden">
+                  {[
+                    "Work from home",
+                    "Flexible schedules",
+                    "Global hiring",
+                  ].map((item) => (
+                    <li
+                      key={item}
+                      className="flex items-center gap-2 rounded-xl border border-white/15 bg-white/10 px-3 py-2.5 text-sm text-zinc-100 backdrop-blur-sm"
+                    >
+                      <svg
+                        className="size-4 shrink-0 text-[#C4C0FF]"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                      >
+                        <path d="M20 6 9 17l-5-5" />
+                      </svg>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+
+                <div className="flex flex-col gap-3">
+                  <a
+                    href={MERCOR_REFERRAL_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-[#7C76FF] px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-[#7C76FF]/30 transition hover:bg-[#8B85FF] hover:shadow-[#7C76FF]/40 sm:w-auto"
+                  >
+                    Find remote jobs upto $100
+                    <svg
+                      className="size-4"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M5 12h14M13 6l6 6-6 6" />
+                    </svg>
+                  </a>
+                  <p className="md:flex hidden text-sm text-zinc-300">
+                    Click to browse work-from-home opportunities on Mercor.
                   </p>
                 </div>
               </div>
-            </div>
 
-            <div className="order-1 sm:order-2 lg:col-span-4">
-              <figure className="w-full h-full">
-                <img
-                  src="/images/vecteezy_young.png"
-                  alt="young"
-                  className="lg:w-full w-[70%] mx-auto h-full object-contain"
-                />
-              </figure>
+              <div className="hidden lg:col-span-5 lg:block">
+                <div className="relative mx-auto flex w-full max-w-md flex-col items-center gap-6 rounded-2xl border border-[#7C76FF]/30 bg-gradient-to-br from-[#22222e] via-[#18181f] to-[#12121a] p-8 sm:p-10">
+                  <div className="flex size-24 items-center justify-center rounded-3xl bg-[#7C76FF]/15 ring-1 ring-[#7C76FF]/35">
+                    <img
+                      src="https://work.mercor.com/icon.svg"
+                      alt=""
+                      width={56}
+                      height={56}
+                      className="size-14"
+                      aria-hidden
+                    />
+                  </div>
+
+                  <div className="flex flex-col items-center gap-2 text-center">
+                    <p className="text-lg font-semibold text-white">
+                      Remote work, made simple
+                    </p>
+                    <p className="max-w-[260px] text-sm leading-relaxed text-zinc-200">
+                      Get matched to companies hiring for remote and hybrid
+                      roles across tech, ops, and more.
+                    </p>
+                  </div>
+
+                  <div className="grid w-full grid-cols-3 gap-3 border-t border-white/15 pt-6">
+                    {[
+                      { label: "Location", value: "Anywhere" },
+                      { label: "Type", value: "Remote" },
+                      { label: "Apply", value: "Online" },
+                    ].map((stat) => (
+                      <div key={stat.label} className="text-center">
+                        <p className="text-sm font-semibold text-[#C4C0FF] sm:text-base">
+                          {stat.value}
+                        </p>
+                        <p className="text-xs text-zinc-300">{stat.label}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -797,6 +907,7 @@ export default function HomePage() {
                 </p>
                 <button
                   type="button"
+                  onClick={scrollToHero}
                   className="btn btn-secondary mt-1 w-[132px] shadow-md"
                 >
                   Learn more

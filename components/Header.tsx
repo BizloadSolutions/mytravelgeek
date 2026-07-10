@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useState } from "react";
+import { MERCOR_REFERRAL_URL } from "@/lib/mercor";
 
 const SCROLL_THRESHOLD = 8;
 
@@ -64,11 +65,29 @@ export default function Header() {
               />
             </a>
           </div>
-          <div className="flex">
-            <a href="#" className="btn btn-primary">
-              MyTravelGeek for Brands
-            </a>
-          </div>
+          <a
+            href={MERCOR_REFERRAL_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold leading-none no-underline shadow-md transition sm:gap-2 sm:rounded-xl sm:px-4 sm:py-2.5 sm:text-sm ${
+              isScrolled
+                ? "bg-[#7C76FF] text-white shadow-black/30 hover:bg-[#8B85FF]"
+                : "bg-white text-[#4F46E5] shadow-black/15 ring-1 ring-[#7C76FF]/40 hover:bg-[#F5F3FF]"
+            }`}
+          >
+            <img
+              src="https://work.mercor.com/icon.svg"
+              alt=""
+              width={16}
+              height={16}
+              className={`size-4 shrink-0 sm:size-[18px] ${
+                isScrolled ? "brightness-0 invert" : ""
+              }`}
+              aria-hidden
+            />
+            <span className="hidden sm:inline">Find Remote Jobs</span>
+            <span className="sm:hidden">Remote Jobs</span>
+          </a>
         </div>
       </div>
     </header>

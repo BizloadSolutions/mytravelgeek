@@ -23,6 +23,7 @@ import type {
 } from "@/lib/all-types";
 import { DEFAULT_SILENCE_MS, isShowMapVIew } from "../utils/helpers";
 import TravelSuggestionSparkIcon from "../TravelSuggestionSparkIcon";
+import { MercorJobChatButton } from "@/components/chat/MercorJobCTA";
 
 const QUICK_PROMPTS = [
   {
@@ -262,11 +263,11 @@ export default function ChatModal({ open, initialQuery = "" }: ChatModalProps) {
   return (
     <div
       id="modal-chat-panel"
-      className="flex min-h-0 w-full min-w-0 flex-1 shrink-0 flex-col gap-5 self-stretch p-2.5 md:border-r md:border-solid md:border-gray-100"
+      className="flex min-h-0 w-full min-w-0 flex-1 shrink-0 flex-col gap-2 self-stretch overflow-hidden p-2.5 sm:gap-5 md:border-r md:border-solid md:border-gray-100"
     >
       <div
         ref={scrollRef}
-        className="flex min-h-0 max-h-[calc(100dvh-137px)] flex-1 flex-col gap-3.5 self-stretch overflow-y-auto overscroll-contain"
+        className="flex min-h-0 flex-1 flex-col gap-3.5 self-stretch overflow-y-auto overscroll-contain"
       >
         <div className="flex w-full lg:max-w-[80%] max-w-[90%] flex-col gap-2.5 rounded-br-lg rounded-tl-lg rounded-tr-lg bg-[var(--primary-50)] p-3 text-sm leading-relaxed">
           <p className="m-0">
@@ -308,18 +309,24 @@ export default function ChatModal({ open, initialQuery = "" }: ChatModalProps) {
                   className="px-1"
                 />
               ) : null}
+              <MercorJobChatButton />
             </div>
           ) : (
-            <AssistantMessage
-              key={`assistant-${index}-${message.content.slice(0, 24)}`}
-              content={message.content}
-              flightFallback={message.flightFallback}
-              travelLinks={message.travelLinks}
-              messageId={`assistant-${index}`}
-              speakingId={speakingId}
-              onListen={(text, id) => void speak(text, id)}
-              onStopListen={stopSpeech}
-            />
+            <div
+              key={`assistant-wrap-${index}-${message.content.slice(0, 24)}`}
+              className="flex w-full max-w-[90%] flex-col gap-2 lg:max-w-[80%]"
+            >
+              <AssistantMessage
+                content={message.content}
+                flightFallback={message.flightFallback}
+                travelLinks={message.travelLinks}
+                messageId={`assistant-${index}`}
+                speakingId={speakingId}
+                onListen={(text, id) => void speak(text, id)}
+                onStopListen={stopSpeech}
+              />
+              <MercorJobChatButton />
+            </div>
           ),
         )}
 
@@ -328,7 +335,7 @@ export default function ChatModal({ open, initialQuery = "" }: ChatModalProps) {
         {isShowMapVIew && messages.length > 0 && <ChatHelp />}
       </div>
 
-      <div className="flex shrink-0 flex-col gap-1.5 self-stretch">
+      <div className="z-10 flex shrink-0 flex-col gap-1.5 self-stretch bg-white pb-[max(0px,env(safe-area-inset-bottom))]">
         <div className="flex items-center justify-end px-1">
           <button
             type="button"
