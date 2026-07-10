@@ -23,7 +23,7 @@ export function MercorJobChatButton() {
       />
       <span className="text-left leading-snug">
         Find work from home jobs up to{" "}
-        <span className="font-semibold">$100/hr</span>
+        <span className="font-semibold">$100 per hour</span>
       </span>
       <svg
         className="size-3.5 shrink-0"
@@ -73,7 +73,7 @@ export default function MercorJobCTA({ compact = false }: MercorJobCTAProps) {
             }`}
           >
             Click here to find a work from home job paying up to{" "}
-            <span className="font-semibold text-[#C4C0FF]">$100/hr</span>
+            <span className="font-semibold text-[#C4C0FF]">$100 per hour</span>
           </p>
         </div>
 
