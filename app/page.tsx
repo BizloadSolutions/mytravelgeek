@@ -515,6 +515,46 @@ export default function HomePage() {
         </div>
       </section>
 
+      <section className="pt-[clamp(20px,5vw,60px)] lg:bg-[linear-gradient(0deg,#F4F4F5_0%,#FFFFFF_100%)]">
+        <div className="container">
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-12 sm:gap-14">
+            <div className="order-2 sm:order-1 lg:col-span-8 sm:flex">
+              <div className="flex w-full flex-col sm:gap-5 gap-2 lg:max-w-[555px] xl:py-[60px] lg:py-[20px]">
+                <h2 className="text-balance text-xl sm:text-2xl md:text-3xl xl:text-4xl font-semibold leading-tight ">
+                  Travel Smarter. Explore Better.
+                </h2>
+                <div className="flex flex-col gap-4 text-sm font-normal leading-relaxed text-zinc-600">
+                  <p>
+                    Welcome to My Travel Geek — your intelligent travel
+                    companion built for modern explorers. We believe planning a
+                    trip should feel exciting, not overwhelming. That's why we
+                    created a platform that simplifies every step of your
+                    journey with smart recommendations, real-time travel
+                    insights, and personalized experiences.
+                  </p>
+                  <p>
+                    Whether you're planning a quick getaway, a business trip, or
+                    a multi-country adventure, My Travel Geek helps you discover
+                    the best flights, stays, restaurants, and experiences — all
+                    in one place.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="order-1 sm:order-2 lg:col-span-4">
+              <figure className="w-full h-full">
+                <img
+                  src="/images/vecteezy_young.png"
+                  alt="young"
+                  className="lg:w-full w-[70%] mx-auto h-full object-contain"
+                />
+              </figure>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section className="relative overflow-hidden py-[clamp(40px,5vw,100px)]">
         <div className="container relative">
           <div
