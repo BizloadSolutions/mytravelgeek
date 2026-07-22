@@ -5,10 +5,6 @@ import {
   buildAviasalesSearchUrl,
 } from "./aviasales-url";
 
-/** Default Aviasales marker URL — primary flight affiliate link. */
-export const DEFAULT_AVIASALES_MARKER =
-  "731063.Zz943a5344757846d987ba5de-731063";
-
 export type TravelServiceType =
   | "flights"
   | "flight_insurance"
@@ -32,19 +28,29 @@ export type TravelAffiliateUrls = {
   getrentacar: string;
   kiwiTaxi: string;
   yesim: string;
+  bookingCom: string;
 };
+
+/** Default Aviasales marker URL — primary flight affiliate link. */
+export const DEFAULT_AVIASALES_MARKER =
+  "731063.Zz943a5344757846d987ba5de-731063";
 
 /** Compensair — EU flight delay/cancellation compensation (up to €600). */
 export const DEFAULT_COMPENSAIR_URL = "https://compensair.tpm.lv/naYYi34N";
+
+/** Booking.com affiliate — flights, hotels, and car rentals. */
+export const DEFAULT_BOOKING_COM_URL =
+  "https://www.kqzyfj.com/click-101762134-17314848";
 
 export const DEFAULT_TRAVEL_AFFILIATE_URLS: TravelAffiliateUrls = {
   aviasalesMarker: `https://www.aviasales.com/?marker=${DEFAULT_AVIASALES_MARKER}`,
   compensair: DEFAULT_COMPENSAIR_URL,
   kkday: "https://kkday.tpm.lv/5WnQK1ZT",
-  wegotrip: "https://wegotrip.com",
-  getrentacar: "https://getrentacar.com",
-  kiwiTaxi: "https://kiwitaxi.com",
-  yesim: "https://yesim.app",
+  wegotrip: "https://wegotrip.tpm.lv/UA18Jj1M",
+  getrentacar: "https://getrentacar.tpm.lv/mrlcVS2i",
+  kiwiTaxi: "https://kiwitaxi.tpm.lv/GQJa9ouB",
+  yesim: "https://yesim.tpm.lv/uijDFnpc",
+  bookingCom: DEFAULT_BOOKING_COM_URL,
 };
 
 /**
@@ -173,6 +179,25 @@ export function buildCompensairLink(urls: TravelAffiliateUrls): TravelLink {
     id: "compensair",
     label: "Check flight compensation",
     url: urls.compensair,
+  };
+}
+
+type BookingComCategory = "flights" | "hotels" | "car_rental";
+
+const BOOKING_COM_LABELS: Record<BookingComCategory, string> = {
+  flights: "Search flights on Booking.com",
+  hotels: "Find hotels on Booking.com",
+  car_rental: "Compare car rentals on Booking.com",
+};
+
+export function buildBookingComLink(
+  urls: TravelAffiliateUrls,
+  category: BookingComCategory,
+): TravelLink {
+  return {
+    id: `booking_com_${category}`,
+    label: BOOKING_COM_LABELS[category],
+    url: urls.bookingCom,
   };
 }
 
@@ -306,6 +331,7 @@ export function buildTravelLinks(
       buildAviasalesLink(urls, options.flightParams, options.aviasalesMarker),
     );
     push(buildCompensairLink(urls));
+    push(buildBookingComLink(urls, "flights"));
     if (options.includeOptionalKkdayForFlights !== false) {
       push({
         id: "kkday",
@@ -325,6 +351,7 @@ export function buildTravelLinks(
       label: "Find stays and packages on KKDay",
       url: urls.kkday,
     });
+    push(buildBookingComLink(urls, "hotels"));
   }
 
   if (services.includes("activities")) {
@@ -346,6 +373,7 @@ export function buildTravelLinks(
       label: "Compare car rentals on GetRentacar",
       url: urls.getrentacar,
     });
+    push(buildBookingComLink(urls, "car_rental"));
   }
 
   if (services.includes("airport_transfer")) {
@@ -371,7 +399,8 @@ export function buildTravelLinks(
 export const TRAVEL_ASSISTANT_RULES = [
   "Be a helpful travel assistant first — answer the question fully before suggesting booking options.",
   "Never mention affiliate, referral, sponsored, or commission.",
-  "Never proactively recommend competitor booking platforms (Booking.com, Expedia, Agoda, Airbnb, Viator, etc.).",
-  "Never include competitor links or competitor booking CTAs.",
+  "Never proactively recommend unapproved booking platforms (Expedia, Agoda, Airbnb, Viator, etc.).",
+  "Booking.com is an approved partner when system-provided links are shown — do not block or replace those CTAs.",
+  "Never include competitor links or competitor booking CTAs beyond approved partner buttons.",
   "Only discuss competitors when the user explicitly asks for a comparison — keep it informational, no links.",
 ].join("\n");
