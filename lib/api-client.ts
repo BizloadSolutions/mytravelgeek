@@ -1,7 +1,7 @@
 import axios, { isAxiosError } from "axios";
 
-const backendOrigin = process.env.NEXT_PUBLIC_BACKEND_URL!.replace(/\/$/, "");
-const apiToken = process.env.NEXT_PUBLIC_API_TOKEN?.trim() ?? "";
+const backendOrigin = process.env.NEXT_PUBLIC_BACKEND_URL ? process.env.NEXT_PUBLIC_BACKEND_URL!.replace(/\/$/, "") : "";
+const apiToken = process.env.NEXT_PUBLIC_API_TOKEN ? process.env.NEXT_PUBLIC_API_TOKEN.trim() : "";
 
 export const api = axios.create({
   baseURL: `${backendOrigin}/api`,

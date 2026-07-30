@@ -85,8 +85,8 @@ export default function Header() {
               }`}
               aria-hidden
             />
-            <span className="hidden sm:inline">Find Remote Jobs</span>
-            <span className="sm:hidden">Remote Jobs</span>
+            <span className="hidden sm:inline">Find Work From Home Jobs</span>
+            <span className="sm:hidden">Find Work From Home Jobs</span>
           </a>
         </div>
       </div>
