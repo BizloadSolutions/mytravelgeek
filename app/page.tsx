@@ -451,7 +451,7 @@ export default function HomePage() {
                     rel="noopener noreferrer"
                     className="inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-[#7C76FF] px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-[#7C76FF]/30 transition hover:bg-[#8B85FF] hover:shadow-[#7C76FF]/40 sm:w-auto"
                   >
-                    Find remote jobs up to $100 per hour
+                    Find Work From Home Jobs up to $100 per hour
                     <svg
                       className="size-4"
                       viewBox="0 0 24 24"
